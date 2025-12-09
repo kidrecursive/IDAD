@@ -6,10 +6,10 @@
 # Install IDAD (Issue Driven Agentic Development) into any repository.
 #
 # USAGE:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 #
 # Or with options:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --branch main
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash -s -- --branch main
 #
 ################################################################################
 
@@ -24,7 +24,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Config
-IDAD_REPO="kidrecursive/idad-cursor"
+IDAD_REPO="kidrecursive/idad"
 IDAD_BRANCH="main"
 
 # Parse arguments
@@ -111,7 +111,7 @@ trap "rm -rf $TEMP_DIR" EXIT
 
 # Clone just the files we need (sparse checkout)
 git clone --depth 1 --filter=blob:none --sparse \
-  "https://github.com/${IDAD_REPO}.git" \
+  "git@github.com:${IDAD_REPO}.git" \
   --branch "$IDAD_BRANCH" \
   "$TEMP_DIR/idad" 2>/dev/null
 
@@ -292,5 +292,5 @@ echo "2. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"
 echo ""
 echo "3. Read the docs:"
-echo -e "   ${YELLOW}https://github.com/kidrecursive/idad-cursor/blob/main/docs/QUICKSTART.md${NC}"
+echo -e "   ${YELLOW}https://github.com/kidrecursive/idad/blob/main/docs/QUICKSTART.md${NC}"
 echo ""

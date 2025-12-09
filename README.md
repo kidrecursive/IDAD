@@ -40,7 +40,7 @@ You create an issue with idad:auto label
 Add IDAD to any existing repository with one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 The installer will:
@@ -176,7 +176,7 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 **Recommended**: Use the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 **Manual**: Copy these to your repo:

@@ -30,7 +30,7 @@ Expected:
 Ensure IDAD is installed. If not, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 ### 3. Workflow Files Committed

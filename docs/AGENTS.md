@@ -694,7 +694,7 @@ All agents have access to:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `GITHUB_TOKEN` | GitHub API auth | (secret) |
-| `GITHUB_REPOSITORY` | Repo in owner/repo format | kidrecursive/idad-cursor |
+| `GITHUB_REPOSITORY` | Repo in owner/repo format | kidrecursive/idad |
 | `GITHUB_RUN_ID` | Current workflow run ID | 20123456789 |
 | `GITHUB_WORKSPACE` | Workspace directory | /home/runner/work/repo |
 | `CURSOR_API_KEY` | Cursor AI auth | (secret) |

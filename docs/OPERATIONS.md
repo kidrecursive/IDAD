@@ -62,12 +62,12 @@ cd repo
 ### Step 4: Run Setup Script
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 Or specify repository explicitly:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash owner/repo
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash owner/repo
 ```
 
 **What It Does**:
@@ -443,7 +443,7 @@ cp ~/backups/workflows-20251209/*.yml .github/workflows/
 
 ```bash
 # Re-run setup script (idempotent)
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 ### Disaster Recovery
@@ -477,7 +477,7 @@ If everything breaks:
 
 4. **Re-run Setup**
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
    ```
 
 5. **Test with Simple Issue**
@@ -621,7 +621,7 @@ done
 
 ```bash
 # Setup
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 
 # Create issue
 gh issue create --title "..." --body "..." --label "idad:auto,type:feature"
@@ -655,7 +655,7 @@ gh run list --status in_progress --json databaseId --jq '.[].databaseId' | xargs
 gh issue list --label "idad:auto" --json number --jq '.[].number' | xargs -I {} gh issue edit {} --remove-label "idad:auto"
 
 # Reset repository
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 ```
 
 ---

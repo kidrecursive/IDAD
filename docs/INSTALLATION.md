@@ -22,7 +22,7 @@ The fastest way to get started with IDAD!
 
 ### Step 1: Use Template
 
-1. Go to [github.com/kidrecursive/idad-cursor](https://github.com/kidrecursive/idad-cursor)
+1. Go to [github.com/kidrecursive/idad](https://github.com/kidrecursive/idad)
 2. Click **"Use this template"**
 3. Choose **"Create a new repository"**
 4. Name your repository
@@ -82,7 +82,7 @@ Add IDAD to an existing project.
 
 **Option A: Manual Download**
 
-Download these directories and files from [github.com/kidrecursive/idad-cursor](https://github.com/kidrecursive/idad-cursor):
+Download these directories and files from [github.com/kidrecursive/idad](https://github.com/kidrecursive/idad):
 
 ```
 .cursor/                # Agent definitions and rules
@@ -95,7 +95,7 @@ Download these directories and files from [github.com/kidrecursive/idad-cursor](
 ```bash
 git subtree add \
   --prefix=idad-files \
-  https://github.com/kidrecursive/idad-cursor.git main \
+  https://github.com/kidrecursive/idad.git main \
   --squash
 
 # Then move files to correct locations
@@ -108,7 +108,7 @@ rm -rf idad-files
 
 ```bash
 # In a temporary directory
-git clone https://github.com/kidrecursive/idad-cursor.git idad-temp
+git clone https://github.com/kidrecursive/idad.git idad-temp
 cd idad-temp
 
 # Copy files to your repository
@@ -231,7 +231,7 @@ gh auth status
 
 **Option A: Template**
 ```bash
-gh repo create your-repo --template kidrecursive/idad-cursor --public
+gh repo create your-repo --template kidrecursive/idad --public
 git clone https://github.com/your-username/your-repo.git
 cd your-repo
 ```
@@ -477,7 +477,7 @@ pwd
 gh repo view --json viewerPermission
 
 # Run with explicit repo
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash owner/repo
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash owner/repo
 ```
 
 ### Workflows Not Running
