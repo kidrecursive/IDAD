@@ -1,0 +1,255 @@
+name: IDAD
+
+on:
+  # Real events - start the chain (PAT allows this to work)
+  issues:
+    types: [opened, labeled]  # Note: labeled fires for ANY label, but we filter for idad:auto
+  pull_request:
+    types: [closed]  # For IDAD agent on merge
+  
+  # Explicit dispatch - agent-to-agent handoff
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Agent to run'
+        required: true
+        type: choice
+        options:
+          - issue-review
+          - planner
+          - implementer
+          - security-scanner
+          - reviewer
+          - documenter
+          - idad
+          - reporting
+      issue:
+        description: 'Issue number'
+        type: string
+        default: ''
+      pr:
+        description: 'PR number'
+        type: string
+        default: ''
+
+# Use PAT for all GitHub operations - enables triggering other workflows
+env:
+  GH_TOKEN: ${{ secrets.IDAD_PAT }}
+  GITHUB_TOKEN: ${{ secrets.IDAD_PAT }}
+  CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+  
+  # Model configuration (override via repository variables)
+  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'sonnet-4.5' }}
+  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'opus-4.5' }}
+  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'sonnet-4.5' }}
+  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'sonnet-4.5' }}
+  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'sonnet-4.5' }}
+  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || 'sonnet-4.5' }}
+  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'sonnet-4.5' }}
+  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'opus-4.5' }}
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+# Prevent concurrent runs for same issue/PR
+concurrency:
+  group: idad-${{ github.event.issue.number || github.event.pull_request.number || inputs.issue || inputs.pr || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # Job 1: Determine what to do based on event or dispatch
+  dispatch:
+    runs-on: ubuntu-latest
+    outputs:
+      agent: ${{ steps.resolve.outputs.agent }}
+      issue: ${{ steps.resolve.outputs.issue }}
+      pr: ${{ steps.resolve.outputs.pr }}
+      model: ${{ steps.resolve.outputs.model }}
+      skip: ${{ steps.resolve.outputs.skip }}
+    
+    steps:
+      - name: Resolve agent and context
+        id: resolve
+        run: |
+          # Default: skip unless we match a condition
+          SKIP="true"
+          AGENT=""
+          ISSUE=""
+          PR=""
+          
+          # === WORKFLOW_DISPATCH: Explicit agent trigger ===
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            AGENT="${{ inputs.agent }}"
+            ISSUE="${{ inputs.issue }}"
+            PR="${{ inputs.pr }}"
+            SKIP="false"
+            echo "📋 Manual dispatch: agent=$AGENT, issue=$ISSUE, pr=$PR"
+          
+          # === ISSUES.OPENED: Start chain with Issue Review ===
+          elif [[ "${{ github.event_name }}" == "issues" && "${{ github.event.action }}" == "opened" ]]; then
+            LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
+            if echo "$LABELS" | grep -q "idad:auto"; then
+              AGENT="issue-review"
+              ISSUE="${{ github.event.issue.number }}"
+              SKIP="false"
+              echo "📋 Issue opened with idad:auto: #$ISSUE"
+            else
+              echo "⏭️ Skipping: Issue #${{ github.event.issue.number }} does not have idad:auto label"
+            fi
+          
+          # === ISSUES.LABELED: Check if idad:auto was just added ===
+          elif [[ "${{ github.event_name }}" == "issues" && "${{ github.event.action }}" == "labeled" ]]; then
+            if [[ "${{ github.event.label.name }}" == "idad:auto" ]]; then
+              AGENT="issue-review"
+              ISSUE="${{ github.event.issue.number }}"
+              SKIP="false"
+              echo "📋 idad:auto label added to issue #$ISSUE"
+            fi
+          
+          # === PR.CLOSED (merged): Trigger IDAD agent for self-improvement ===
+          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "closed" ]]; then
+            if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
+              LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+              BRANCH="${{ github.event.pull_request.head.ref }}"
+              
+              # Skip IDAD's own PRs and infrastructure (prevent loops)
+              if [[ "$BRANCH" =~ ^idad/ ]]; then
+                echo "⏭️ Skipping: IDAD's own branch ($BRANCH)"
+              elif echo "$LABELS" | grep -q "type:infrastructure"; then
+                echo "⏭️ Skipping: Infrastructure PR"
+              elif echo "$LABELS" | grep -q "idad:auto"; then
+                AGENT="idad"
+                PR="${{ github.event.pull_request.number }}"
+                SKIP="false"
+                echo "📋 PR merged with idad:auto: #$PR"
+              else
+                echo "⏭️ Skipping: Merged PR does not have idad:auto label"
+              fi
+            else
+              echo "⏭️ Skipping: PR closed without merge"
+            fi
+          else
+            echo "⏭️ Skipping: Unhandled event ${{ github.event_name }}/${{ github.event.action }}"
+          fi
+          
+          # === Select model for agent ===
+          case "$AGENT" in
+            planner)          MODEL="${{ env.MODEL_PLANNER }}" ;;
+            implementer)      MODEL="${{ env.MODEL_IMPLEMENTER }}" ;;
+            reviewer)         MODEL="${{ env.MODEL_REVIEWER }}" ;;
+            security-scanner) MODEL="${{ env.MODEL_SECURITY }}" ;;
+            documenter)       MODEL="${{ env.MODEL_DOCUMENTER }}" ;;
+            issue-review)     MODEL="${{ env.MODEL_ISSUE_REVIEW }}" ;;
+            idad)             MODEL="${{ env.MODEL_IDAD }}" ;;
+            *)                MODEL="${{ env.MODEL_DEFAULT }}" ;;
+          esac
+          
+          # Output results
+          echo "agent=$AGENT" >> $GITHUB_OUTPUT
+          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
+          echo "pr=$PR" >> $GITHUB_OUTPUT
+          echo "model=$MODEL" >> $GITHUB_OUTPUT
+          echo "skip=$SKIP" >> $GITHUB_OUTPUT
+
+  # Job 2: Run the agent
+  agent:
+    needs: dispatch
+    if: needs.dispatch.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Cache Cursor CLI
+        id: cache-cursor
+        uses: actions/cache@v4
+        with:
+          path: ~/.local
+          key: ${{ runner.os }}-cursor-cli-v1
+          restore-keys: |
+            ${{ runner.os }}-cursor-cli-
+      
+      - name: Install Cursor CLI
+        if: steps.cache-cursor.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL https://cursor.com/install | bash
+      
+      - name: Add Cursor to PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Run ${{ needs.dispatch.outputs.agent }} agent
+        env:
+          AGENT: ${{ needs.dispatch.outputs.agent }}
+          ISSUE: ${{ needs.dispatch.outputs.issue }}
+          PR: ${{ needs.dispatch.outputs.pr }}
+          MODEL: ${{ needs.dispatch.outputs.model }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          echo "============================================="
+          echo "  IDAD Agent Runner"
+          echo "============================================="
+          echo ""
+          echo "🤖 Agent: $AGENT"
+          echo "📋 Issue: ${ISSUE:-none}"
+          echo "🔀 PR: ${PR:-none}"
+          echo "🧠 Model: $MODEL"
+          echo ""
+          
+          AGENT_FILE=".cursor/agents/${AGENT}.md"
+          RULES_FILE=".cursor/rules/system.mdc"
+          
+          # Check agent file exists
+          if [[ ! -f "$AGENT_FILE" ]]; then
+            echo "❌ Agent file not found: $AGENT_FILE"
+            exit 1
+          fi
+          
+          # Check rules file exists
+          if [[ ! -f "$RULES_FILE" ]]; then
+            echo "❌ Rules file not found: $RULES_FILE"
+            exit 1
+          fi
+          
+          echo "📄 Agent file: $AGENT_FILE"
+          echo "📄 Rules file: $RULES_FILE"
+          echo ""
+          
+          # Build the prompt with context
+          PROMPT="You are the ${AGENT} agent for IDAD.
+
+          CONTEXT:
+          - Repository: ${REPO}
+          - Issue: #${ISSUE:-N/A}
+          - PR: #${PR:-N/A}
+          - Workflow Run: ${RUN_ID}
+
+          INSTRUCTIONS:
+          Follow your agent definition exactly. Use 'gh' CLI for all GitHub operations.
+          Use 'git' for all repository operations. Post a summary comment with agentlog
+          block when done. Trigger the next appropriate agent via:
+            gh workflow run idad.yml -f agent=<next> -f issue=<num> -f pr=<num>
+
+          Execute your responsibilities now."
+
+          # Run the agent
+          cursor-agent \
+            ${MODEL:+--model "$MODEL"} \
+            -f "$RULES_FILE" \
+            -f "$AGENT_FILE" \
+            -p "$PROMPT"
+          
+          EXIT_CODE=$?
+          
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo ""
+            echo "✅ Agent completed successfully"
+          else
+            echo ""
+            echo "❌ Agent failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi

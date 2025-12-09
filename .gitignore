@@ -1,0 +1,45 @@
+# Build and compilation artifacts
+# Note: .idad/bin/ is NOT ignored - it contains CLI tools
+obj/
+build/
+dist/
+out/
+
+# Dependency directories
+node_modules/
+vendor/
+packages/
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# Environment files (uncomment if needed)
+#.env
+#.env.local
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Version control
+.git/
+!.gitignore
+
+# Project-specific files
+*.tmp
+*.temp
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
