@@ -1,0 +1,225 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'install.sh'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'install.sh'
+      - '.github/workflows/test.yml'
+
+jobs:
+  # Job 1: Validate YAML and lint scripts
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate workflow YAML files
+        run: |
+          echo "Validating workflow YAML files..."
+          for file in src/workflows/*.yml; do
+            echo "Checking $file"
+            python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+          done
+          echo "✅ All YAML files valid"
+      
+      - name: Lint install.sh
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          additional_files: 'install.sh'
+          severity: warning
+
+  # Job 2: Test Cursor installation path
+  test-cursor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup test repository
+        run: |
+          mkdir -p /tmp/test-repo
+          cd /tmp/test-repo
+          git init
+          git config user.email "test@test.com"
+          git config user.name "Test"
+          echo "# Test Repo" > README.md
+          git add . && git commit -m "init"
+      
+      - name: Simulate Cursor installation
+        run: |
+          cd /tmp/test-repo
+          
+          # Create directories
+          mkdir -p .cursor/agents .cursor/rules .github/workflows
+          
+          # Copy files (simulating what installer does)
+          cp $GITHUB_WORKSPACE/src/agents/* .cursor/agents/
+          cp $GITHUB_WORKSPACE/src/rules/system.mdc .cursor/rules/
+          cp $GITHUB_WORKSPACE/src/workflows/idad-cursor.yml .github/workflows/idad.yml
+          cp $GITHUB_WORKSPACE/src/workflows/ci.yml .github/workflows/
+          cp $GITHUB_WORKSPACE/src/cursor/README.md .cursor/
+      
+      - name: Verify Cursor installation
+        run: |
+          cd /tmp/test-repo
+          
+          echo "Checking agent files..."
+          AGENT_COUNT=$(ls .cursor/agents/*.md 2>/dev/null | wc -l)
+          if [ "$AGENT_COUNT" -ne 8 ]; then
+            echo "❌ Expected 8 agent files, found $AGENT_COUNT"
+            ls -la .cursor/agents/
+            exit 1
+          fi
+          echo "✅ Found $AGENT_COUNT agent files"
+          
+          echo "Checking required files..."
+          test -f .cursor/agents/planner.md || { echo "❌ Missing planner.md"; exit 1; }
+          test -f .cursor/agents/implementer.md || { echo "❌ Missing implementer.md"; exit 1; }
+          test -f .cursor/agents/reviewer.md || { echo "❌ Missing reviewer.md"; exit 1; }
+          test -f .cursor/agents/issue-review.md || { echo "❌ Missing issue-review.md"; exit 1; }
+          test -f .cursor/agents/documenter.md || { echo "❌ Missing documenter.md"; exit 1; }
+          test -f .cursor/agents/security-scanner.md || { echo "❌ Missing security-scanner.md"; exit 1; }
+          test -f .cursor/agents/idad.md || { echo "❌ Missing idad.md"; exit 1; }
+          test -f .cursor/agents/reporting.md || { echo "❌ Missing reporting.md"; exit 1; }
+          test -f .cursor/rules/system.mdc || { echo "❌ Missing system.mdc"; exit 1; }
+          test -f .cursor/README.md || { echo "❌ Missing README.md"; exit 1; }
+          test -f .github/workflows/idad.yml || { echo "❌ Missing idad.yml"; exit 1; }
+          test -f .github/workflows/ci.yml || { echo "❌ Missing ci.yml"; exit 1; }
+          echo "✅ All required files present"
+          
+          echo "Checking workflow references .cursor paths..."
+          grep -q '\.cursor/agents' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference .cursor/agents"; exit 1; }
+          grep -q '\.cursor/rules' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference .cursor/rules"; exit 1; }
+          grep -q 'CURSOR_API_KEY' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference CURSOR_API_KEY"; exit 1; }
+          echo "✅ Workflow paths correct"
+          
+          echo ""
+          echo "✅ Cursor installation test passed!"
+
+  # Job 3: Test Claude installation path
+  test-claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup test repository
+        run: |
+          mkdir -p /tmp/test-repo
+          cd /tmp/test-repo
+          git init
+          git config user.email "test@test.com"
+          git config user.name "Test"
+          echo "# Test Repo" > README.md
+          git add . && git commit -m "init"
+      
+      - name: Simulate Claude installation
+        run: |
+          cd /tmp/test-repo
+          
+          # Create directories
+          mkdir -p .claude/agents .claude/rules .github/workflows
+          
+          # Copy files (simulating what installer does)
+          cp $GITHUB_WORKSPACE/src/agents/* .claude/agents/
+          cp $GITHUB_WORKSPACE/src/rules/system.md .claude/rules/
+          cp $GITHUB_WORKSPACE/src/workflows/idad-claude.yml .github/workflows/idad.yml
+          cp $GITHUB_WORKSPACE/src/workflows/ci.yml .github/workflows/
+      
+      - name: Verify Claude installation
+        run: |
+          cd /tmp/test-repo
+          
+          echo "Checking agent files..."
+          AGENT_COUNT=$(ls .claude/agents/*.md 2>/dev/null | wc -l)
+          if [ "$AGENT_COUNT" -ne 8 ]; then
+            echo "❌ Expected 8 agent files, found $AGENT_COUNT"
+            ls -la .claude/agents/
+            exit 1
+          fi
+          echo "✅ Found $AGENT_COUNT agent files"
+          
+          echo "Checking required files..."
+          test -f .claude/agents/planner.md || { echo "❌ Missing planner.md"; exit 1; }
+          test -f .claude/agents/implementer.md || { echo "❌ Missing implementer.md"; exit 1; }
+          test -f .claude/agents/reviewer.md || { echo "❌ Missing reviewer.md"; exit 1; }
+          test -f .claude/agents/issue-review.md || { echo "❌ Missing issue-review.md"; exit 1; }
+          test -f .claude/agents/documenter.md || { echo "❌ Missing documenter.md"; exit 1; }
+          test -f .claude/agents/security-scanner.md || { echo "❌ Missing security-scanner.md"; exit 1; }
+          test -f .claude/agents/idad.md || { echo "❌ Missing idad.md"; exit 1; }
+          test -f .claude/agents/reporting.md || { echo "❌ Missing reporting.md"; exit 1; }
+          test -f .claude/rules/system.md || { echo "❌ Missing system.md"; exit 1; }
+          test -f .github/workflows/idad.yml || { echo "❌ Missing idad.yml"; exit 1; }
+          test -f .github/workflows/ci.yml || { echo "❌ Missing ci.yml"; exit 1; }
+          echo "✅ All required files present"
+          
+          echo "Checking workflow references .claude paths..."
+          grep -q '\.claude/agents' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference .claude/agents"; exit 1; }
+          grep -q '\.claude/rules' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference .claude/rules"; exit 1; }
+          grep -q 'ANTHROPIC_API_KEY' .github/workflows/idad.yml || { echo "❌ Workflow doesn't reference ANTHROPIC_API_KEY"; exit 1; }
+          echo "✅ Workflow paths correct"
+          
+          echo ""
+          echo "✅ Claude installation test passed!"
+
+  # Job 4: Verify workflow parity
+  test-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check agent list parity
+        run: |
+          echo "Checking both workflows have same agent options..."
+          
+          # Extract agent options from both workflows
+          CURSOR_AGENTS=$(grep -A 15 "type: choice" src/workflows/idad-cursor.yml | grep "^ *- " | sort)
+          CLAUDE_AGENTS=$(grep -A 15 "type: choice" src/workflows/idad-claude.yml | grep "^ *- " | sort)
+          
+          echo "Cursor agents:"
+          echo "$CURSOR_AGENTS"
+          echo ""
+          echo "Claude agents:"
+          echo "$CLAUDE_AGENTS"
+          
+          if [ "$CURSOR_AGENTS" != "$CLAUDE_AGENTS" ]; then
+            echo ""
+            echo "❌ Agent lists don't match!"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ Both workflows have identical agent options"
+      
+      - name: Check agent files match
+        run: |
+          echo "Checking all agents referenced in workflows exist..."
+          
+          AGENTS="issue-review planner implementer security-scanner reviewer documenter idad reporting"
+          
+          for agent in $AGENTS; do
+            if [ ! -f "src/agents/${agent}.md" ]; then
+              echo "❌ Missing agent file: src/agents/${agent}.md"
+              exit 1
+            fi
+            echo "✅ src/agents/${agent}.md exists"
+          done
+          
+          echo ""
+          echo "✅ All agent files exist"
+      
+      - name: Check rules files exist
+        run: |
+          echo "Checking rules files..."
+          
+          test -f src/rules/system.mdc || { echo "❌ Missing system.mdc (Cursor)"; exit 1; }
+          test -f src/rules/system.md || { echo "❌ Missing system.md (Claude)"; exit 1; }
+          
+          echo "✅ Both rules files exist"
