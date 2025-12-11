@@ -153,32 +153,56 @@ echo ""
 echo -e "${BLUE}▶ Configuring secrets...${NC}"
 echo ""
 
-# Check IDAD_PAT
-if gh secret list --repo "$REPO" 2>/dev/null | grep -q "IDAD_PAT"; then
-  echo -e "  ${GREEN}✓${NC} IDAD_PAT already configured"
+# Check IDAD_APP_ID
+if gh secret list --repo "$REPO" 2>/dev/null | grep -q "IDAD_APP_ID"; then
+  echo -e "  ${GREEN}✓${NC} IDAD_APP_ID already configured"
 else
-  echo -e "${YELLOW}IDAD requires a Fine-Grained Personal Access Token (PAT)${NC}"
+  echo -e "${YELLOW}IDAD requires a GitHub App for automation${NC}"
   echo ""
-  echo "Create one at: ${CYAN}https://github.com/settings/tokens?type=beta${NC}"
+  echo "Create a GitHub App at: ${CYAN}https://github.com/settings/apps/new${NC}"
   echo ""
-  echo "Required permissions:"
+  echo "Required repository permissions:"
   echo "  • Contents: Read and Write"
   echo "  • Issues: Read and Write"
   echo "  • Pull requests: Read and Write"
   echo "  • Actions: Read and Write"
   echo "  • Workflows: Read and Write"
   echo ""
-  echo "Repository access: Only select repositories → ${REPO}"
+  echo "After creating the app:"
+  echo "  1. Generate a private key"
+  echo "  2. Install the app on: ${REPO}"
+  echo "  3. Note the App ID (shown on app settings page)"
   echo ""
-  echo -n "Paste your PAT (or press Enter to skip): "
-  read -s PAT_TOKEN
-  echo ""
+  echo -n "Enter your App ID (or press Enter to skip): "
+  read APP_ID
   
-  if [ -n "$PAT_TOKEN" ]; then
-    echo "$PAT_TOKEN" | gh secret set IDAD_PAT --repo "$REPO"
-    echo -e "  ${GREEN}✓${NC} IDAD_PAT configured"
+  if [ -n "$APP_ID" ]; then
+    echo "$APP_ID" | gh secret set IDAD_APP_ID --repo "$REPO"
+    echo -e "  ${GREEN}✓${NC} IDAD_APP_ID configured"
   else
-    echo -e "  ${YELLOW}⚠${NC} IDAD_PAT skipped - add it later with: gh secret set IDAD_PAT"
+    echo -e "  ${YELLOW}⚠${NC} IDAD_APP_ID skipped - add it later with: gh secret set IDAD_APP_ID"
+  fi
+fi
+
+echo ""
+
+# Check IDAD_APP_PRIVATE_KEY
+if gh secret list --repo "$REPO" 2>/dev/null | grep -q "IDAD_APP_PRIVATE_KEY"; then
+  echo -e "  ${GREEN}✓${NC} IDAD_APP_PRIVATE_KEY already configured"
+else
+  echo -e "${YELLOW}Enter the path to your GitHub App private key (.pem file)${NC}"
+  echo ""
+  echo -n "Path to .pem file (or press Enter to skip): "
+  read PEM_PATH
+  
+  if [ -n "$PEM_PATH" ] && [ -f "$PEM_PATH" ]; then
+    gh secret set IDAD_APP_PRIVATE_KEY --repo "$REPO" < "$PEM_PATH"
+    echo -e "  ${GREEN}✓${NC} IDAD_APP_PRIVATE_KEY configured"
+  elif [ -n "$PEM_PATH" ]; then
+    echo -e "  ${RED}✗${NC} File not found: $PEM_PATH"
+    echo -e "  ${YELLOW}⚠${NC} Add it later with: gh secret set IDAD_APP_PRIVATE_KEY < path/to/key.pem"
+  else
+    echo -e "  ${YELLOW}⚠${NC} IDAD_APP_PRIVATE_KEY skipped - add it later with: gh secret set IDAD_APP_PRIVATE_KEY < path/to/key.pem"
   fi
 fi
 

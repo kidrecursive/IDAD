@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 
 The installer will:
 - Download IDAD agent definitions and workflows
-- Guide you through PAT and API key setup
+- Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
 - Commit the files to your repo
 
@@ -61,23 +61,53 @@ gh run list --workflow=idad.yml --limit 5
 
 ---
 
-## PAT Setup (Required)
+## GitHub App Setup (Required)
 
-IDAD requires a **Fine-Grained Personal Access Token** to enable workflows to trigger other workflows.
+IDAD requires a **GitHub App** to enable workflows to trigger other workflows and perform automated actions.
 
-1. Go to: [GitHub Token Settings](https://github.com/settings/tokens?type=beta)
-2. Click **"Generate new token"**
-3. Configure:
-   - **Name**: `IDAD Automation`
-   - **Expiration**: 90 days
-   - **Repository access**: Only select repositories → your repo
-4. **Permissions**:
-   - Contents: Read and Write
-   - Issues: Read and Write
-   - Pull requests: Read and Write
-   - Actions: Read and Write
-   - Workflows: Read and Write *(required for CI evolution)*
-5. Add to repository: `gh secret set IDAD_PAT`
+### Step 1: Create the GitHub App
+
+1. Go to: [GitHub App Settings](https://github.com/settings/apps/new) (or your org's settings)
+2. Configure:
+   - **Name**: `IDAD Automation` (or your preferred name)
+   - **Homepage URL**: Your repository URL
+   - **Webhook**: Uncheck "Active" (not needed)
+3. **Repository Permissions**:
+   | Permission | Access |
+   |------------|--------|
+   | Contents | Read and Write |
+   | Issues | Read and Write |
+   | Pull requests | Read and Write |
+   | Actions | Read and Write |
+   | Workflows | Read and Write |
+4. **Where can this app be installed?**: Only on this account
+5. Click **"Create GitHub App"**
+
+### Step 2: Generate Private Key
+
+1. On the app's settings page, scroll to **"Private keys"**
+2. Click **"Generate a private key"**
+3. Save the downloaded `.pem` file securely
+
+### Step 3: Install the App
+
+1. Go to your app's settings page
+2. Click **"Install App"** in the sidebar
+3. Choose **"Only select repositories"**
+4. Select your target repository
+5. Click **"Install"**
+
+### Step 4: Add Secrets
+
+```bash
+# Get your App ID from the app's settings page (shown at top)
+gh secret set IDAD_APP_ID
+
+# Add the private key from your .pem file
+gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
+```
+
+> **Note**: The private key is multi-line. Use file redirection as shown above, or paste carefully when prompted.
 
 ---
 
@@ -184,16 +214,18 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 - `.github/workflows/idad.yml`
 - `.github/workflows/ci.yml`
 
-Then add secrets (`IDAD_PAT`, `CURSOR_API_KEY`) and create labels manually.
+Then add secrets (`IDAD_APP_ID`, `IDAD_APP_PRIVATE_KEY`, `CURSOR_API_KEY`) and create labels manually.
 
 ---
 
 ## Security
 
-- **PAT Scope**: Single repository only
-- **PAT Expiration**: 90 days (rotate regularly)
+- **GitHub App**: Scoped to specific repositories only
+- **Private Key**: Stored securely as repository secret
+- **Installation Tokens**: Auto-generated, short-lived (1 hour)
 - **Security Scanner**: Checks for vulnerabilities before review
 - **Opt-in Only**: Automation requires explicit `idad:auto` label
+- **Bot Identity**: All actions clearly attributed to `IDAD[bot]`
 
 ---
 

@@ -12,8 +12,9 @@ Common issues and solutions for the IDAD system.
 4. [Workflow Stuck](#workflow-stuck)
 5. [GitHub Actions Problems](#github-actions-problems)
 6. [Permission Issues](#permission-issues)
-7. [Manual Recovery](#manual-recovery)
-8. [Debugging Tools](#debugging-tools)
+7. [GitHub App Issues](#github-app-issues)
+8. [Manual Recovery](#manual-recovery)
+9. [Debugging Tools](#debugging-tools)
 
 ---
 
@@ -385,7 +386,7 @@ git commit --allow-empty -m "Trigger workflows"
 git push
 ```
 
-**Better Solution**: Use GitHub App token (advanced, not covered here)
+**Note**: IDAD uses GitHub App tokens which should handle this automatically. If you're still seeing this issue, check your GitHub App configuration in [GitHub App Issues](#github-app-issues).
 
 ---
 
@@ -398,6 +399,75 @@ git push
 permissions:
   issues: write
   pull-requests: write
+```
+
+---
+
+## GitHub App Issues
+
+### Issue: "Resource not accessible by integration"
+
+**Cause**: The GitHub App doesn't have required permissions or isn't installed on the repository.
+
+**Solution**:
+1. Go to your app's settings: https://github.com/settings/apps
+2. Verify permissions include:
+   - Contents: Read and Write
+   - Issues: Read and Write
+   - Pull requests: Read and Write
+   - Actions: Read and Write
+   - Workflows: Read and Write
+3. Check installation:
+   - Go to "Install App" in sidebar
+   - Verify your repository is selected
+
+---
+
+### Issue: "Could not create token for app"
+
+**Cause**: Invalid App ID or private key.
+
+**Solution**:
+```bash
+# Verify secrets are set
+gh secret list  # Should show IDAD_APP_ID and IDAD_APP_PRIVATE_KEY
+
+# Re-add the App ID
+gh secret set IDAD_APP_ID
+# Enter the numeric App ID when prompted
+
+# Re-add the private key (ensure it's the full .pem contents)
+gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
+```
+
+---
+
+### Issue: Actions not appearing as bot
+
+**Expected**: Actions should appear as `IDAD Automation[bot]` (or your app name).
+
+**Check**: Verify the workflow is using the app token:
+```bash
+gh secret list
+# Should show IDAD_APP_ID and IDAD_APP_PRIVATE_KEY
+```
+
+If secrets are present but actions still appear as a user, check that the workflow is using `actions/create-github-app-token@v1` correctly.
+
+---
+
+### Issue: Token expired mid-workflow
+
+**Cause**: GitHub App installation tokens are valid for 1 hour.
+
+**Solution**: This is rare but can happen for very long-running agents. The workflow generates a fresh token for each job, so this typically isn't an issue. If you encounter this, the agent can be re-triggered:
+
+```bash
+gh workflow run idad.yml \
+  --ref main \
+  -f agent="<agent-type>" \
+  -f issue="<number>" \
+  -f pr="<pr-number>"
 ```
 
 ---

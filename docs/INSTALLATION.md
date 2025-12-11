@@ -178,9 +178,13 @@ idad watch 1
    - Get from: https://cursor.com/settings
    - Required for AI agent execution
 
+5. **GitHub App** (for automation)
+   - Create at: https://github.com/settings/apps
+   - See setup instructions below
+
 ### Optional
 
-5. **Shell**: bash or zsh (macOS/Linux)
+6. **Shell**: bash or zsh (macOS/Linux)
    - Windows: Use Git Bash or WSL
 
 6. **Editor**: Any (Cursor IDE recommended)
@@ -322,19 +326,53 @@ Next steps:
      idad docs quickstart
 ```
 
-### 6. Add Cursor API Key
+### 6. Add GitHub App and API Credentials
 
-Get your key from https://cursor.com/settings
+#### Create the GitHub App
+
+1. Go to [GitHub App Settings](https://github.com/settings/apps/new)
+2. Fill in:
+   - **Name**: `IDAD Automation`
+   - **Homepage URL**: `https://github.com/your-username/your-repo`
+   - **Webhook**: Uncheck "Active"
+3. Set **Repository Permissions**:
+   - Contents: Read and Write
+   - Issues: Read and Write
+   - Pull requests: Read and Write
+   - Actions: Read and Write
+   - Workflows: Read and Write
+4. Click **"Create GitHub App"**
+5. Note the **App ID** displayed on the page
+6. Scroll to "Private keys" and click **"Generate a private key"**
+7. Save the downloaded `.pem` file
+
+#### Install the App
+
+1. Go to your app's settings
+2. Click **"Install App"**
+3. Select **"Only select repositories"**
+4. Choose your repository
+5. Click **"Install"**
+
+#### Add Secrets
 
 ```bash
+# Add App ID
+gh secret set IDAD_APP_ID
+# Enter the numeric App ID when prompted
+
+# Add Private Key (from .pem file)
+gh secret set IDAD_APP_PRIVATE_KEY < ~/Downloads/your-app-name.YYYY-MM-DD.private-key.pem
+
+# Add Cursor API key
 gh secret set CURSOR_API_KEY
-# Paste key when prompted
+# Paste your key from https://cursor.com/settings
 ```
 
 **Verify:**
 ```bash
 gh secret list
-# Should show CURSOR_API_KEY
+# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, CURSOR_API_KEY
 ```
 
 ---
@@ -564,10 +602,20 @@ rm .github/workflows/ci.yml
 gh label delete "idad:auto"
 # ... repeat for all idad labels
 
-# 4. Remove secret
+# 4. Remove secrets
+gh secret delete IDAD_APP_ID
+gh secret delete IDAD_APP_PRIVATE_KEY
 gh secret delete CURSOR_API_KEY
 
-# 5. Remove branch protection (optional)
+# 5. Uninstall GitHub App (optional)
+# Go to https://github.com/settings/installations
+# Find IDAD Automation and click "Configure" → "Uninstall"
+
+# 6. Delete GitHub App (optional)
+# Go to https://github.com/settings/apps
+# Find IDAD Automation and click "Edit" → "Delete GitHub App"
+
+# 7. Remove branch protection (optional)
 # Via GitHub UI: Settings → Branches
 ```
 
@@ -586,7 +634,7 @@ After installation:
 
 **Installation Time**: 5-10 minutes  
 **Difficulty**: Easy  
-**Requirements**: Git, GitHub CLI, Cursor API key
+**Requirements**: Git, GitHub CLI, GitHub App, Cursor API key
 
 **Need help?** Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 

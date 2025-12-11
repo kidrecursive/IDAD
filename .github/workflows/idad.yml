@@ -1,7 +1,7 @@
 name: IDAD
 
 on:
-  # Real events - start the chain (PAT allows this to work)
+  # Real events - start the chain (GitHub App token allows this to work)
   issues:
     types: [opened, labeled]  # Note: labeled fires for ANY label, but we filter for idad:auto
   pull_request:
@@ -32,12 +32,8 @@ on:
         type: string
         default: ''
 
-# Use PAT for all GitHub operations - enables triggering other workflows
+# Global environment - tokens are generated per-job via GitHub App
 env:
-  GH_TOKEN: ${{ secrets.IDAD_PAT }}
-  GITHUB_TOKEN: ${{ secrets.IDAD_PAT }}
-  CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-  
   # Model configuration (override via repository variables)
   MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'sonnet-4.5' }}
   MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'opus-4.5' }}
@@ -53,6 +49,7 @@ permissions:
   issues: write
   pull-requests: write
   actions: write
+  workflows: write  # Required for gh workflow run
 
 # Prevent concurrent runs for same issue/PR
 concurrency:
@@ -71,8 +68,17 @@ jobs:
       skip: ${{ steps.resolve.outputs.skip }}
     
     steps:
+      - name: Get IDAD GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.IDAD_APP_ID }}
+          private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
+
       - name: Resolve agent and context
         id: resolve
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           # Default: skip unless we match a condition
           SKIP="true"
@@ -163,6 +169,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Get IDAD GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.IDAD_APP_ID }}
+          private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
       
       - name: Cache Cursor CLI
         id: cache-cursor
@@ -183,6 +196,9 @@ jobs:
       
       - name: Run ${{ needs.dispatch.outputs.agent }} agent
         env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           AGENT: ${{ needs.dispatch.outputs.agent }}
           ISSUE: ${{ needs.dispatch.outputs.issue }}
           PR: ${{ needs.dispatch.outputs.pr }}

@@ -75,7 +75,7 @@ The workflow provides:
 - Agent-specific definition file
 - System context from rules/system.mdc
 - Event context and environment variables
-- GitHub API access (IDAD_PAT)
+- GitHub API access (via GitHub App token)
 - Cursor AI access (CURSOR_API_KEY)
 
 ## Model Configuration

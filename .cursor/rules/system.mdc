@@ -116,7 +116,7 @@ gh workflow run idad.yml \
   -f pr="<pr-number>"
 ```
 
-**Important**: Always trigger the next agent explicitly. The PAT allows workflows to trigger other workflows.
+**Important**: Always trigger the next agent explicitly. The GitHub App token allows workflows to trigger other workflows.
 
 ---
 

@@ -22,7 +22,8 @@ gh secret list
 ```
 
 Expected:
-- `IDAD_PAT` - Fine-grained PAT with required permissions
+- `IDAD_APP_ID` - GitHub App ID
+- `IDAD_APP_PRIVATE_KEY` - GitHub App private key
 - `CURSOR_API_KEY` - Cursor API key
 
 ### 2. Repository Setup Complete
