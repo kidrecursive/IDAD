@@ -1,13 +1,10 @@
 # IDAD - Issue Driven Agentic Development
 
-### `cursor-agent` Implementation
-
 🤖 **Fully automated, self-improving GitHub-based agentic coding system**
 
 Create issues, get PRs automatically. AI agents handle the entire development workflow.
 
-> **Other Implementations:**
-> - [`claude-code`](https://github.com/kidrecursive/idad) - Uses Anthropic's Claude Code CLI
+**Supports both [Cursor Agent](https://docs.cursor.com/agent/cli) and [Claude Code](https://claude.ai/code) CLIs**
 
 ---
 
@@ -40,14 +37,32 @@ You create an issue with idad:auto label
 Add IDAD to any existing repository with one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
 ```
 
 The installer will:
+- Ask which AI CLI you want to use (Cursor or Claude Code)
 - Download IDAD agent definitions and workflows
 - Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
 - Commit the files to your repo
+
+### CLI Options
+
+| CLI | Command | API Key |
+|-----|---------|---------|
+| **Cursor Agent** | `cursor-agent` | `CURSOR_API_KEY` |
+| **Claude Code** | `claude` | `ANTHROPIC_API_KEY` |
+
+You can also specify the CLI directly:
+
+```bash
+# Install with Cursor (default)
+curl -fsSL https://...install.sh | bash -s -- --cli cursor
+
+# Install with Claude Code
+curl -fsSL https://...install.sh | bash -s -- --cli claude
+```
 
 ### Try It
 
@@ -105,6 +120,10 @@ gh secret set IDAD_APP_ID
 
 # Add the private key from your .pem file
 gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
+
+# Add your AI CLI API key (one of these, depending on your choice)
+gh secret set CURSOR_API_KEY      # For Cursor Agent
+gh secret set ANTHROPIC_API_KEY   # For Claude Code
 ```
 
 > **Note**: The private key is multi-line. Use file redirection as shown above, or paste carefully when prompted.
@@ -113,25 +132,26 @@ gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
 
 ## Agents
 
-Agents run via the [`cursor-agent`](https://docs.cursor.com/agent/cli) CLI.
-
 | Agent | Purpose | Model (default) |
 |-------|---------|-----------------|
-| **Issue Review** | Refine and classify issues | sonnet-4.5 |
-| **Planner** | Create implementation plans | opus-4.5 |
-| **Implementer** | Write code and tests | sonnet-4.5 |
-| **Security Scanner** | Check for vulnerabilities | sonnet-4.5 |
-| **Reviewer** | Perform code review | sonnet-4.5 |
-| **Documenter** | Update documentation | sonnet-4.5 |
-| **IDAD** | Self-improvement | opus-4.5 |
+| **Issue Review** | Refine and classify issues | sonnet |
+| **Planner** | Create implementation plans | opus |
+| **Implementer** | Write code and tests | sonnet |
+| **Security Scanner** | Check for vulnerabilities | sonnet |
+| **Reviewer** | Perform code review | sonnet |
+| **Documenter** | Update documentation | sonnet |
+| **IDAD** | Self-improvement | opus |
 
 ### Configure Models
 
-Models are those [available in Cursor](https://docs.cursor.com/settings/models).
-
 ```bash
+# For Cursor Agent (uses Cursor model names)
 gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
 gh variable set IDAD_MODEL_IMPLEMENTER --body "sonnet-4.5"
+
+# For Claude Code (uses Anthropic model names)
+gh variable set IDAD_MODEL_PLANNER --body "claude-opus-4-20250514"
+gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
 ```
 
 ---
@@ -166,12 +186,12 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 
 ---
 
-## File Structure
+## File Structure (After Installation)
+
+### Cursor Agent Installation
 
 ```
 .cursor/
-├── rules/
-│   └── system.mdc         # Shared agent context
 ├── agents/
 │   ├── issue-review.md
 │   ├── planner.md
@@ -179,42 +199,47 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 │   ├── security-scanner.md
 │   ├── reviewer.md
 │   ├── documenter.md
-│   └── idad.md
+│   ├── idad.md
+│   └── reporting.md
+├── rules/
+│   └── system.mdc
 └── README.md
 
-.github/
-├── workflows/
-│   ├── idad.yml           # Main agent workflow
-│   └── ci.yml             # CI template
-└── idad/docs/             # Documentation
+.github/workflows/
+├── idad.yml
+└── ci.yml
+```
+
+### Claude Code Installation
+
+```
+.claude/
+├── agents/
+│   ├── issue-review.md
+│   ├── planner.md
+│   ├── implementer.md
+│   ├── security-scanner.md
+│   ├── reviewer.md
+│   ├── documenter.md
+│   ├── idad.md
+│   └── reporting.md
+└── rules/
+    └── system.md
+
+.github/workflows/
+├── idad.yml
+└── ci.yml
 ```
 
 ---
 
 ## Documentation
 
-- [Quick Start](.github/idad/docs/QUICKSTART.md)
-- [Installation](.github/idad/docs/INSTALLATION.md)
-- [Workflow Guide](.github/idad/docs/WORKFLOW.md)
-- [Agent Reference](.github/idad/docs/AGENTS.md)
-- [Troubleshooting](.github/idad/docs/TROUBLESHOOTING.md)
-
----
-
-## Adding to Existing Repository
-
-**Recommended**: Use the installer:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
-```
-
-**Manual**: Copy these to your repo:
-- `.cursor/` (agents and rules)
-- `.github/workflows/idad.yml`
-- `.github/workflows/ci.yml`
-
-Then add secrets (`IDAD_APP_ID`, `IDAD_APP_PRIVATE_KEY`, `CURSOR_API_KEY`) and create labels manually.
+- [Quick Start](docs/QUICKSTART.md)
+- [Installation](docs/INSTALLATION.md)
+- [Workflow Guide](docs/WORKFLOW.md)
+- [Agent Reference](docs/AGENTS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ---
 
@@ -236,5 +261,3 @@ MIT
 ---
 
 **Created with ❤️ by AI agents, for human developers**
-
-*This is the `cursor-agent` implementation. See also: [idad](https://github.com/kidrecursive/idad) for the `claude-code` implementation.*

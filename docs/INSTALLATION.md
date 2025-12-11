@@ -6,151 +6,34 @@ Complete guide to installing and configuring IDAD in your repository.
 
 ## Table of Contents
 
-1. [New Repository (Template)](#new-repository-template)
-2. [Existing Repository](#existing-repository)
-3. [Prerequisites](#prerequisites)
-4. [Installation Steps](#installation-steps)
+1. [Quick Install](#quick-install)
+2. [Prerequisites](#prerequisites)
+3. [CLI Options](#cli-options)
+4. [GitHub App Setup](#github-app-setup)
 5. [Configuration](#configuration)
 6. [Verification](#verification)
 7. [Troubleshooting](#troubleshooting)
+8. [Uninstallation](#uninstallation)
 
 ---
 
-## New Repository (Template)
+## Quick Install
 
-The fastest way to get started with IDAD!
-
-### Step 1: Use Template
-
-1. Go to [github.com/kidrecursive/idad](https://github.com/kidrecursive/idad)
-2. Click **"Use this template"**
-3. Choose **"Create a new repository"**
-4. Name your repository
-5. Click **"Create repository"**
-
-### Step 2: Clone Repository
+Add IDAD to any existing repository with one command:
 
 ```bash
-git clone https://github.com/your-username/your-repo.git
-cd your-repo
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
 ```
 
-### Step 3: Add CLI to PATH
+The installer will:
+1. Check prerequisites (git, gh CLI)
+2. Ask which AI CLI you want to use
+3. Download agent definitions and workflows
+4. Guide you through secrets setup
+5. Create labels and configure permissions
+6. Commit files to your repo
 
-```bash
-# Temporary (current session only)
-export PATH="$PATH:$(pwd)/.idad/bin"
-
-# Permanent (add to shell profile)
-echo "export PATH=\"\$PATH:$PWD/.idad/bin\"" >> ~/.zshrc
-# Or for bash:
-echo "export PATH=\"\$PATH:$PWD/.idad/bin\"" >> ~/.bashrc
-
-# Reload shell
-source ~/.zshrc  # or source ~/.bashrc
-```
-
-### Step 4: Run Setup
-
-```bash
-idad setup
-```
-
-### Step 5: Add Cursor API Key
-
-```bash
-gh secret set CURSOR_API_KEY
-# Paste your key from https://cursor.com/settings
-```
-
-### Step 6: Done!
-
-```bash
-# Create your first issue
-idad new "Add your feature"
-```
-
-**Total time**: < 5 minutes ✅
-
----
-
-## Existing Repository
-
-Add IDAD to an existing project.
-
-### Step 1: Download IDAD Files
-
-**Option A: Manual Download**
-
-Download these directories and files from [github.com/kidrecursive/idad](https://github.com/kidrecursive/idad):
-
-```
-.cursor/                # Agent definitions and rules
-.github/workflows/      # Workflow files
-.github/idad/           # IDAD documentation
-```
-
-**Option B: Git Subtree** (Advanced)
-
-```bash
-git subtree add \
-  --prefix=idad-files \
-  https://github.com/kidrecursive/idad.git main \
-  --squash
-
-# Then move files to correct locations
-mv idad-files/.cursor .
-mv idad-files/.github .
-rm -rf idad-files
-```
-
-**Option C: Direct Clone**
-
-```bash
-# In a temporary directory
-git clone https://github.com/kidrecursive/idad.git idad-temp
-cd idad-temp
-
-# Copy files to your repository
-cp -r .cursor /path/to/your/repo/
-cp -r .github /path/to/your/repo/
-
-# Clean up
-cd ..
-rm -rf idad-temp
-```
-
-### Step 2: Add CLI to PATH
-
-```bash
-cd /path/to/your/repo
-
-# Temporary
-export PATH="$PATH:$(pwd)/.idad/bin"
-
-# Permanent
-echo "export PATH=\"\$PATH:$PWD/.idad/bin\"" >> ~/.zshrc
-source ~/.zshrc
-```
-
-### Step 3: Run Setup
-
-```bash
-idad setup
-```
-
-### Step 4: Configure Secrets
-
-```bash
-gh secret set CURSOR_API_KEY
-```
-
-### Step 5: Test
-
-```bash
-idad new "Test IDAD integration"
-idad watch 1
-```
+**Total time**: ~5 minutes
 
 ---
 
@@ -174,205 +57,132 @@ idad watch 1
    - Public or private
    - GitHub Actions enabled
 
-4. **Cursor API Key**
-   - Get from: https://cursor.com/settings
-   - Required for AI agent execution
+4. **AI CLI API Key** (one of these):
+   - **Cursor**: Get from https://cursor.com/settings
+   - **Anthropic**: Get from https://console.anthropic.com/settings/keys
 
 5. **GitHub App** (for automation)
    - Create at: https://github.com/settings/apps
-   - See setup instructions below
+   - See [GitHub App Setup](#github-app-setup) below
 
 ### Optional
 
-6. **Shell**: bash or zsh (macOS/Linux)
-   - Windows: Use Git Bash or WSL
-
-6. **Editor**: Any (Cursor IDE recommended)
+- **Shell**: bash or zsh (macOS/Linux)
+- Windows: Use Git Bash or WSL
 
 ---
 
-## Installation Steps
+## CLI Options
 
-### 1. Install GitHub CLI
+IDAD supports two AI CLI tools:
 
-**macOS:**
-```bash
-brew install gh
-```
+| CLI | Command | Config Dir | API Secret |
+|-----|---------|------------|------------|
+| **Cursor Agent** | `cursor-agent` | `.cursor/` | `CURSOR_API_KEY` |
+| **Claude Code** | `claude` | `.claude/` | `ANTHROPIC_API_KEY` |
 
-**Linux:**
-```bash
-curl -sS https://webi.sh/gh | sh
-```
-
-**Windows:**
-```bash
-winget install GitHub.cli
-```
-
-**Verify:**
-```bash
-gh --version
-```
-
-### 2. Authenticate GitHub CLI
+### Install with Specific CLI
 
 ```bash
-gh auth login
+# Interactive (will prompt)
+curl -fsSL https://...install.sh | bash
+
+# Cursor Agent (explicit)
+curl -fsSL https://...install.sh | bash -s -- --cli cursor
+
+# Claude Code (explicit)
+curl -fsSL https://...install.sh | bash -s -- --cli claude
 ```
 
-Follow prompts:
-- Choose: GitHub.com
-- Protocol: HTTPS or SSH
-- Authenticate: Browser or Token
+### Files Installed
 
-**Verify:**
-```bash
-gh auth status
+**Cursor Agent:**
+```
+.cursor/
+├── agents/           # 8 agent definitions
+├── rules/
+│   └── system.mdc    # System context
+└── README.md
+
+.github/workflows/
+├── idad.yml          # Main workflow
+└── ci.yml            # CI template
 ```
 
-### 3. Clone/Create Repository
+**Claude Code:**
+```
+.claude/
+├── agents/           # 8 agent definitions
+└── rules/
+    └── system.md     # System context
 
-**Option A: Template**
-```bash
-gh repo create your-repo --template kidrecursive/idad --public
-git clone https://github.com/your-username/your-repo.git
-cd your-repo
+.github/workflows/
+├── idad.yml          # Main workflow
+└── ci.yml            # CI template
 ```
 
-**Option B: Existing Repo**
-```bash
-cd your-existing-repo
-# Download IDAD files (see above)
-```
+---
 
-### 4. Add IDAD CLI to PATH
+## GitHub App Setup
 
-**Method 1: Shell Profile (Permanent)**
+IDAD requires a GitHub App to enable workflows to trigger other workflows.
 
-```bash
-# For zsh (macOS default)
-echo 'export PATH="$PATH:/path/to/your/repo/.idad/bin"' >> ~/.zshrc
-source ~/.zshrc
-
-# For bash
-echo 'export PATH="$PATH:/path/to/your/repo/.idad/bin"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-**Method 2: Symlink (Global)**
-
-```bash
-sudo ln -s /path/to/your/repo/.idad/bin/idad /usr/local/bin/idad
-```
-
-**Method 3: Session Only**
-
-```bash
-export PATH="$PATH:/path/to/your/repo/.idad/bin"
-```
-
-**Verify:**
-```bash
-idad version
-# Should output: idad version 1.0.0
-```
-
-### 5. Run Repository Setup
-
-```bash
-idad setup
-```
-
-This creates:
-- 17 IDAD labels
-- GitHub Actions permissions
-- Branch protection rules
-
-**Expected Output:**
-```
-🤖 IDAD Repository Setup
-
-ℹ️  Repository: your-username/your-repo
-
-======================================================================
-  IDAD Repository Setup
-  Repository: your-username/your-repo
-======================================================================
-
-Step 1: Creating IDAD Labels
-✅ All 17 labels created successfully!
-
-Step 2: Configuring GitHub Actions Permissions
-✅ Workflow permissions updated!
-
-Step 3: Configuring Branch Protection (main)
-✅ Branch protection configured for 'main'!
-
-======================================================================
-  Setup Complete! ✅
-======================================================================
-
-✅ Setup complete!
-
-Next steps:
-  1. Add CURSOR_API_KEY to repository secrets
-     gh secret set CURSOR_API_KEY
-
-  2. Create your first issue:
-     idad new "Add welcome message"
-
-  3. Learn more:
-     idad docs quickstart
-```
-
-### 6. Add GitHub App and API Credentials
-
-#### Create the GitHub App
+### Step 1: Create the GitHub App
 
 1. Go to [GitHub App Settings](https://github.com/settings/apps/new)
 2. Fill in:
    - **Name**: `IDAD Automation`
-   - **Homepage URL**: `https://github.com/your-username/your-repo`
+   - **Homepage URL**: Your repository URL
    - **Webhook**: Uncheck "Active"
 3. Set **Repository Permissions**:
-   - Contents: Read and Write
-   - Issues: Read and Write
-   - Pull requests: Read and Write
-   - Actions: Read and Write
-   - Workflows: Read and Write
-4. Click **"Create GitHub App"**
-5. Note the **App ID** displayed on the page
-6. Scroll to "Private keys" and click **"Generate a private key"**
-7. Save the downloaded `.pem` file
 
-#### Install the App
+   | Permission | Access |
+   |------------|--------|
+   | Contents | Read and Write |
+   | Issues | Read and Write |
+   | Pull requests | Read and Write |
+   | Actions | Read and Write |
+   | Workflows | Read and Write |
 
-1. Go to your app's settings
-2. Click **"Install App"**
-3. Select **"Only select repositories"**
-4. Choose your repository
+4. **Where can this app be installed?**: Only on this account
+5. Click **"Create GitHub App"**
+6. Note the **App ID** displayed on the page
+
+### Step 2: Generate Private Key
+
+1. On the app's settings page, scroll to **"Private keys"**
+2. Click **"Generate a private key"**
+3. Save the downloaded `.pem` file securely
+
+### Step 3: Install the App
+
+1. Go to your app's settings page
+2. Click **"Install App"** in the sidebar
+3. Choose **"Only select repositories"**
+4. Select your target repository
 5. Click **"Install"**
 
-#### Add Secrets
+### Step 4: Add Secrets
 
 ```bash
-# Add App ID
+# App ID (from app settings page)
 gh secret set IDAD_APP_ID
 # Enter the numeric App ID when prompted
 
-# Add Private Key (from .pem file)
-gh secret set IDAD_APP_PRIVATE_KEY < ~/Downloads/your-app-name.YYYY-MM-DD.private-key.pem
+# Private Key (from .pem file)
+gh secret set IDAD_APP_PRIVATE_KEY < ~/Downloads/your-app.private-key.pem
 
-# Add Cursor API key
-gh secret set CURSOR_API_KEY
-# Paste your key from https://cursor.com/settings
+# AI CLI API Key (choose one based on your CLI)
+gh secret set CURSOR_API_KEY      # For Cursor Agent
+# OR
+gh secret set ANTHROPIC_API_KEY   # For Claude Code
 ```
 
-**Verify:**
+### Verify Secrets
+
 ```bash
 gh secret list
-# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, CURSOR_API_KEY
+# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, and your API key
 ```
 
 ---
@@ -381,206 +191,163 @@ gh secret list
 
 ### GitHub Actions Permissions
 
-Verify in: Settings → Actions → General
+The installer configures these automatically. To verify:
 
-**Workflow permissions:**
-- ✅ Read and write permissions
-- ✅ Allow GitHub Actions to create and approve pull requests
-
-### Branch Protection
-
-Verify in: Settings → Branches → Branch protection rules (main)
-
-**Required:**
-- ✅ Require pull request before merging
-- ✅ Require approvals: 1
-- ✅ Require status checks to pass: `test`
-- ❌ Require branches to be up to date: Not required
+1. Go to: Settings → Actions → General
+2. **Workflow permissions**: Read and write permissions ✅
+3. **Allow GitHub Actions to create and approve pull requests** ✅
 
 ### Labels
 
-Verify labels exist:
+The installer creates these labels automatically:
 
+**Type labels:**
+- `type:issue`, `type:epic`, `type:bug`, `type:documentation`, `type:question`, `type:infrastructure`
+
+**State labels:**
+- `state:issue-review`, `state:ready`, `state:planning`, `state:implementing`, `state:robot-review`, `state:robot-docs`, `state:human-review`
+
+**Control labels:**
+- `idad:auto`, `needs-clarification`, `needs-changes`
+
+Verify:
 ```bash
-gh label list
+gh label list | grep -E "(idad|type:|state:)"
 ```
 
-**Should include:**
-- `idad:auto` (opt-in trigger)
-- `type:*` (feature, bug, documentation, epic, question, infrastructure)
-- `state:*` (issue-review, ready, planning, implementing, robot-review, robot-docs, human-review)
-- `needs-clarification`, `needs-changes`
+### Model Configuration
+
+Override default models via repository variables:
+
+```bash
+# For Cursor Agent
+gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
+gh variable set IDAD_MODEL_IMPLEMENTER --body "sonnet-4.5"
+
+# For Claude Code
+gh variable set IDAD_MODEL_PLANNER --body "claude-opus-4-20250514"
+gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
+```
 
 ---
 
 ## Verification
 
-### 1. Check CLI Installation
+### 1. Check Files Exist
 
 ```bash
-idad version
-# Output: idad version 1.0.0
+# For Cursor
+ls .cursor/agents/
+# Should show 8 .md files
 
-idad help
-# Should show help text
+# For Claude
+ls .claude/agents/
+# Should show 8 .md files
+
+# Check workflow
+ls .github/workflows/
+# Should show: idad.yml, ci.yml
 ```
 
-### 2. Check GitHub Setup
+### 2. Check Secrets
 
 ```bash
-# In repository
-gh repo view
-
-# Check labels
-gh label list | grep -E "(idad|type:|state:)"
-
-# Check workflows
-ls .github/workflows/
-# Should show: idad.yml, dispatcher.yml, ci.yml
-
-# Check agents
-ls .cursor/agents/
-# Should show 7 agent .md files
+gh secret list
+# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, CURSOR_API_KEY (or ANTHROPIC_API_KEY)
 ```
 
 ### 3. Test with Example Issue
 
 ```bash
-idad new "Test IDAD installation"
+gh issue create \
+  --title "Test IDAD installation" \
+  --label "idad:auto" \
+  --body "This is a test issue to verify IDAD is working."
 
-# When prompted:
-Type: feature
-Description:
-This is a test issue to verify IDAD is working correctly.
-[Ctrl+D]
-
-# Watch it work
-idad watch 1
+# Watch the workflow
+gh run list --workflow=idad.yml --limit 5
 ```
 
 **Expected:**
-- Issue created with `idad:auto` label
-- Dispatcher workflow runs
-- Issue Review Agent executes
-- Labels change: `state:issue-review` → `state:ready`
-- Planner Agent executes
-- Implementation plan added to issue
-
-**If this works**, IDAD is installed correctly! ✅
+1. Issue created with `idad:auto` label
+2. IDAD workflow triggers
+3. Issue Review Agent runs
+4. Labels change to `state:ready`
+5. Planner Agent runs
+6. Implementation plan added to issue
 
 ---
 
 ## Troubleshooting
 
-### CLI Not Found
+### Installer Fails
 
-**Problem:** `idad: command not found`
-
-**Solution:**
-```bash
-# Check PATH
-echo $PATH | grep idad
-
-# If not in PATH, add it
-export PATH="$PATH:/path/to/your/repo/.idad/bin"
-
-# Make permanent
-echo 'export PATH="$PATH:/path/to/your/repo/.idad/bin"' >> ~/.zshrc
-source ~/.zshrc
-
-# Or use full path
-/path/to/your/repo/.idad/bin/idad help
-```
-
-### GitHub CLI Not Authenticated
-
-**Problem:** `gh: not authenticated`
+**Problem:** Permission errors or clone fails
 
 **Solution:**
 ```bash
-gh auth login
-# Follow prompts to authenticate
-```
+# Check you're in a git repository
+git rev-parse --git-dir
 
-### Setup Script Fails
-
-**Problem:** Permission errors during `idad setup`
-
-**Solution:**
-```bash
-# Check you're in repository root
-pwd
+# Check GitHub CLI is authenticated
+gh auth status
 
 # Check you have admin access
 gh repo view --json viewerPermission
-
-# Run with explicit repo
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash owner/repo
 ```
 
-### Workflows Not Running
+### Workflow Not Running
 
 **Problem:** Created issue but nothing happens
 
 **Solution:**
 ```bash
-# 1. Check label
-gh issue view 1 --json labels
-# Should have idad:auto
+# 1. Check label exists
+gh issue view <num> --json labels
 
-# 2. Check workflows
-gh run list --limit 5
-# Should show recent runs
+# 2. Check workflow exists
+ls .github/workflows/idad.yml
 
-# 3. Check Actions enabled
-gh repo view --json hasIssuesEnabled,hasWikiEnabled
+# 3. Check secrets exist
+gh secret list
 
 # 4. Manually trigger
-idad trigger issue-review 1
+gh workflow run idad.yml -f agent="issue-review" -f issue="<num>"
+
+# 5. Check workflow logs
+gh run list --workflow=idad.yml --limit 5
+gh run view <run-id> --log
 ```
 
-### Missing Agent Files
+### Agent Fails
 
-**Problem:** Agent definition files not found
+**Problem:** Agent runs but fails
 
 **Solution:**
 ```bash
-# Check files exist
-ls -la .cursor/agents/
+# Check workflow run logs
+gh run view <run-id> --log
 
-# Should have:
-# - issue-review.md
-# - planner.md
-# - implementer.md
-# - reviewer.md
-# - documenter.md
-# - idad.md
-# - reporting.md
-
-# If missing, re-download from template
+# Common issues:
+# - Missing API key (CURSOR_API_KEY or ANTHROPIC_API_KEY)
+# - Missing agent files
+# - Invalid model name
 ```
 
----
+### API Key Issues
 
-## Platform-Specific Notes
+**Problem:** Authentication errors
 
-### macOS
+**Solution:**
+```bash
+# Verify secret exists
+gh secret list | grep -E "(CURSOR|ANTHROPIC)"
 
-- Default shell: zsh (use `~/.zshrc`)
-- GitHub CLI: Install via Homebrew
-- No issues expected
-
-### Linux
-
-- Default shell: bash (use `~/.bashrc`)
-- GitHub CLI: Install via package manager
-- May need to install `jq` for CLI tool
-
-### Windows
-
-- Use Git Bash or WSL (Windows Subsystem for Linux)
-- PowerShell support: Limited (bash script)
-- Recommended: Use WSL with Ubuntu
+# Re-add secret
+gh secret set CURSOR_API_KEY
+# or
+gh secret set ANTHROPIC_API_KEY
+```
 
 ---
 
@@ -589,35 +356,45 @@ ls -la .cursor/agents/
 To remove IDAD:
 
 ```bash
-# 1. Remove from PATH
-# Edit ~/.zshrc or ~/.bashrc and remove idad PATH line
-
-# 2. Delete files
-rm -rf .cursor
-rm -rf .github/idad
+# 1. Delete files (choose based on your CLI)
+rm -rf .cursor        # Cursor Agent
+rm -rf .claude        # Claude Code
 rm .github/workflows/idad.yml
 rm .github/workflows/ci.yml
 
-# 3. Delete labels (optional)
-gh label delete "idad:auto"
-# ... repeat for all idad labels
-
-# 4. Remove secrets
+# 2. Remove secrets
 gh secret delete IDAD_APP_ID
 gh secret delete IDAD_APP_PRIVATE_KEY
-gh secret delete CURSOR_API_KEY
+gh secret delete CURSOR_API_KEY      # or ANTHROPIC_API_KEY
 
-# 5. Uninstall GitHub App (optional)
+# 3. Delete labels (optional)
+gh label delete "idad:auto"
+gh label delete "state:issue-review"
+# ... etc
+
+# 4. Uninstall GitHub App (optional)
 # Go to https://github.com/settings/installations
-# Find IDAD Automation and click "Configure" → "Uninstall"
-
-# 6. Delete GitHub App (optional)
-# Go to https://github.com/settings/apps
-# Find IDAD Automation and click "Edit" → "Delete GitHub App"
-
-# 7. Remove branch protection (optional)
-# Via GitHub UI: Settings → Branches
+# Find IDAD Automation → Configure → Uninstall
 ```
+
+---
+
+## Platform Notes
+
+### macOS
+- Default shell: zsh
+- GitHub CLI: `brew install gh`
+- No issues expected
+
+### Linux
+- Default shell: bash
+- GitHub CLI: See https://cli.github.com/
+- No issues expected
+
+### Windows
+- Use Git Bash or WSL
+- PowerShell: Limited support
+- Recommended: WSL with Ubuntu
 
 ---
 
@@ -625,20 +402,29 @@ gh secret delete CURSOR_API_KEY
 
 After installation:
 
-1. **Read Quick Start**: `idad docs quickstart`
-2. **Create First Issue**: `idad new "Your feature"`
-3. **Read Workflow Guide**: `idad docs workflow`
-4. **Explore Commands**: `idad help`
+1. **Create your first issue:**
+   ```bash
+   gh issue create --title "My feature" --label "idad:auto" --body "Description"
+   ```
+
+2. **Watch agents work:**
+   ```bash
+   gh run list --workflow=idad.yml --limit 5
+   ```
+
+3. **Read the docs:**
+   - [Quick Start](QUICKSTART.md)
+   - [Workflow Guide](WORKFLOW.md)
+   - [Agent Reference](AGENTS.md)
 
 ---
 
-**Installation Time**: 5-10 minutes  
+**Installation Time**: ~5 minutes  
 **Difficulty**: Easy  
-**Requirements**: Git, GitHub CLI, GitHub App, Cursor API key
+**Requirements**: Git, GitHub CLI, GitHub App, API key
 
 **Need help?** Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-11

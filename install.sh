@@ -6,10 +6,10 @@
 # Install IDAD (Issue Driven Agentic Development) into any repository.
 #
 # USAGE:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
 #
 # Or with options:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash -s -- --branch main
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --branch main --cli cursor
 #
 ################################################################################
 
@@ -24,14 +24,19 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Config
-IDAD_REPO="kidrecursive/idad"
+IDAD_REPO="kidrecursive/idad-cursor"
 IDAD_BRANCH="main"
+CLI_TYPE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
     --branch)
       IDAD_BRANCH="$2"
+      shift 2
+      ;;
+    --cli)
+      CLI_TYPE="$2"
       shift 2
       ;;
     *)
@@ -44,7 +49,6 @@ echo ""
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║                                                                ║${NC}"
 echo -e "${CYAN}║   ${GREEN}IDAD - Issue Driven Agentic Development${CYAN}                    ║${NC}"
-echo -e "${CYAN}║   ${NC}cursor-agent implementation${CYAN}                                 ║${NC}"
 echo -e "${CYAN}║                                                                ║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
@@ -91,8 +95,54 @@ echo -e "  ${GREEN}✓${NC} Repository: ${REPO}"
 
 echo ""
 
+# CLI Selection
+if [ -z "$CLI_TYPE" ]; then
+  echo -e "${BLUE}▶ Select your AI CLI tool:${NC}"
+  echo ""
+  echo "  1) cursor  - Cursor Agent CLI (cursor-agent)"
+  echo "  2) claude  - Claude Code CLI (Anthropic)"
+  echo ""
+  echo -n "Enter choice [1]: "
+  read CLI_CHOICE
+  
+  case "$CLI_CHOICE" in
+    2|claude)
+      CLI_TYPE="claude"
+      ;;
+    *)
+      CLI_TYPE="cursor"
+      ;;
+  esac
+fi
+
+# Set CLI-specific variables
+case "$CLI_TYPE" in
+  claude)
+    CONFIG_DIR=".claude"
+    WORKFLOW_FILE="idad-claude.yml"
+    API_KEY_SECRET="ANTHROPIC_API_KEY"
+    API_KEY_URL="https://console.anthropic.com/settings/keys"
+    API_KEY_NAME="Anthropic API"
+    RULES_EXT="md"
+    CLI_DISPLAY="Claude Code"
+    ;;
+  *)
+    CLI_TYPE="cursor"
+    CONFIG_DIR=".cursor"
+    WORKFLOW_FILE="idad-cursor.yml"
+    API_KEY_SECRET="CURSOR_API_KEY"
+    API_KEY_URL="https://cursor.com/settings"
+    API_KEY_NAME="Cursor API"
+    RULES_EXT="mdc"
+    CLI_DISPLAY="Cursor Agent"
+    ;;
+esac
+
+echo -e "  ${GREEN}✓${NC} Selected: ${CLI_DISPLAY}"
+echo ""
+
 # Check for existing IDAD installation
-if [ -d ".cursor/agents" ] || [ -f ".github/workflows/idad.yml" ]; then
+if [ -d "$CONFIG_DIR/agents" ] || [ -d ".cursor/agents" ] || [ -d ".claude/agents" ] || [ -f ".github/workflows/idad.yml" ]; then
   echo -e "${YELLOW}⚠ IDAD files already exist in this repository${NC}"
   echo -n "Overwrite? (y/N): "
   read OVERWRITE
@@ -109,14 +159,18 @@ echo -e "${BLUE}▶ Downloading IDAD files...${NC}"
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
-# Clone just the files we need (sparse checkout)
+# Clone just the src files we need (sparse checkout)
+git clone --depth 1 --filter=blob:none --sparse \
+  "https://github.com/${IDAD_REPO}.git" \
+  --branch "$IDAD_BRANCH" \
+  "$TEMP_DIR/idad" 2>/dev/null || \
 git clone --depth 1 --filter=blob:none --sparse \
   "git@github.com:${IDAD_REPO}.git" \
   --branch "$IDAD_BRANCH" \
   "$TEMP_DIR/idad" 2>/dev/null
 
 cd "$TEMP_DIR/idad"
-git sparse-checkout set .cursor .github/workflows 2>/dev/null
+git sparse-checkout set src 2>/dev/null
 cd - > /dev/null
 
 echo -e "  ${GREEN}✓${NC} Downloaded from ${IDAD_REPO}@${IDAD_BRANCH}"
@@ -125,26 +179,34 @@ echo -e "  ${GREEN}✓${NC} Downloaded from ${IDAD_REPO}@${IDAD_BRANCH}"
 echo -e "${BLUE}▶ Installing files...${NC}"
 
 # Create directories
-mkdir -p .cursor/agents
-mkdir -p .cursor/rules
+mkdir -p "$CONFIG_DIR/agents"
+mkdir -p "$CONFIG_DIR/rules"
 mkdir -p .github/workflows
 
 # Copy agent definitions
-cp -r "$TEMP_DIR/idad/.cursor/agents/"* .cursor/agents/
-echo -e "  ${GREEN}✓${NC} .cursor/agents/ (8 agent definitions)"
+cp -r "$TEMP_DIR/idad/src/agents/"* "$CONFIG_DIR/agents/"
+echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/agents/ (8 agent definitions)"
 
-# Copy rules
-cp -r "$TEMP_DIR/idad/.cursor/rules/"* .cursor/rules/
-echo -e "  ${GREEN}✓${NC} .cursor/rules/system.mdc"
+# Copy rules file (CLI-specific extension)
+cp "$TEMP_DIR/idad/src/rules/system.$RULES_EXT" "$CONFIG_DIR/rules/"
+echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/rules/system.$RULES_EXT"
 
-# Copy workflows
-cp "$TEMP_DIR/idad/.github/workflows/idad.yml" .github/workflows/
-cp "$TEMP_DIR/idad/.github/workflows/ci.yml" .github/workflows/
+# Copy workflow (CLI-specific)
+cp "$TEMP_DIR/idad/src/workflows/$WORKFLOW_FILE" .github/workflows/idad.yml
+cp "$TEMP_DIR/idad/src/workflows/ci.yml" .github/workflows/
 echo -e "  ${GREEN}✓${NC} .github/workflows/ (idad.yml, ci.yml)"
 
-# Copy .cursor README
-if [ -f "$TEMP_DIR/idad/.cursor/README.md" ]; then
-  cp "$TEMP_DIR/idad/.cursor/README.md" .cursor/
+# Copy CLI-specific extras
+if [ "$CLI_TYPE" = "cursor" ]; then
+  if [ -f "$TEMP_DIR/idad/src/cursor/README.md" ]; then
+    cp "$TEMP_DIR/idad/src/cursor/README.md" "$CONFIG_DIR/"
+    echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/README.md"
+  fi
+elif [ "$CLI_TYPE" = "claude" ]; then
+  if [ -f "$TEMP_DIR/idad/src/claude/CLAUDE.md" ]; then
+    cp "$TEMP_DIR/idad/src/claude/CLAUDE.md" ./
+    echo -e "  ${GREEN}✓${NC} CLAUDE.md"
+  fi
 fi
 
 echo ""
@@ -208,23 +270,23 @@ fi
 
 echo ""
 
-# Check CURSOR_API_KEY
-if gh secret list --repo "$REPO" 2>/dev/null | grep -q "CURSOR_API_KEY"; then
-  echo -e "  ${GREEN}✓${NC} CURSOR_API_KEY already configured"
+# Check CLI-specific API key
+if gh secret list --repo "$REPO" 2>/dev/null | grep -q "$API_KEY_SECRET"; then
+  echo -e "  ${GREEN}✓${NC} $API_KEY_SECRET already configured"
 else
-  echo -e "${YELLOW}IDAD uses Cursor for AI agent execution${NC}"
+  echo -e "${YELLOW}IDAD uses ${CLI_DISPLAY} for AI agent execution${NC}"
   echo ""
-  echo "Get your API key at: ${CYAN}https://cursor.com/settings${NC}"
+  echo "Get your API key at: ${CYAN}${API_KEY_URL}${NC}"
   echo ""
-  echo -n "Paste your Cursor API key (or press Enter to skip): "
-  read -s CURSOR_KEY
+  echo -n "Paste your ${API_KEY_NAME} key (or press Enter to skip): "
+  read -s API_KEY
   echo ""
   
-  if [ -n "$CURSOR_KEY" ]; then
-    echo "$CURSOR_KEY" | gh secret set CURSOR_API_KEY --repo "$REPO"
-    echo -e "  ${GREEN}✓${NC} CURSOR_API_KEY configured"
+  if [ -n "$API_KEY" ]; then
+    echo "$API_KEY" | gh secret set "$API_KEY_SECRET" --repo "$REPO"
+    echo -e "  ${GREEN}✓${NC} $API_KEY_SECRET configured"
   else
-    echo -e "  ${YELLOW}⚠${NC} CURSOR_API_KEY skipped - add it later with: gh secret set CURSOR_API_KEY"
+    echo -e "  ${YELLOW}⚠${NC} $API_KEY_SECRET skipped - add it later with: gh secret set $API_KEY_SECRET"
   fi
 fi
 
@@ -274,7 +336,10 @@ echo ""
 # Commit files
 echo -e "${BLUE}▶ Committing IDAD files...${NC}"
 
-git add .cursor/ .github/workflows/idad.yml .github/workflows/ci.yml
+git add "$CONFIG_DIR/" .github/workflows/idad.yml .github/workflows/ci.yml
+if [ -f "CLAUDE.md" ]; then
+  git add CLAUDE.md
+fi
 
 if git diff --staged --quiet; then
   echo -e "  ${YELLOW}⚠${NC} No changes to commit (files already exist)"
@@ -282,10 +347,11 @@ else
   git commit -m "feat: add IDAD (Issue Driven Agentic Development)
 
 Installed via: curl -fsSL https://raw.githubusercontent.com/${IDAD_REPO}/main/install.sh | bash
+CLI: ${CLI_DISPLAY}
 
 Components:
-- .cursor/agents/ - 8 AI agent definitions
-- .cursor/rules/system.mdc - System context
+- $CONFIG_DIR/agents/ - 8 AI agent definitions
+- $CONFIG_DIR/rules/system.$RULES_EXT - System context
 - .github/workflows/idad.yml - Main workflow
 - .github/workflows/ci.yml - CI template"
 
@@ -304,6 +370,7 @@ echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}║   ✓ IDAD Installation Complete!                               ║${NC}"
+echo -e "${GREEN}║     CLI: ${CLI_DISPLAY}                                        ${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
@@ -316,5 +383,5 @@ echo "2. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"
 echo ""
 echo "3. Read the docs:"
-echo -e "   ${YELLOW}https://github.com/kidrecursive/idad/blob/main/docs/QUICKSTART.md${NC}"
+echo -e "   ${YELLOW}https://github.com/${IDAD_REPO}#readme${NC}"
 echo ""
