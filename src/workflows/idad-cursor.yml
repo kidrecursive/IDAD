@@ -3,11 +3,13 @@ name: IDAD
 on:
   # Real events - start the chain (GitHub App token allows this to work)
   issues:
-    types: [opened, labeled]  # Note: labeled fires for ANY label, but we filter for idad:auto
+    types: [labeled]  # Labeled fires for ANY label, but we filter for idad:* labels
   issue_comment:
-    types: [created]  # For plan review feedback
+    types: [created]  # For issue clarification and plan review feedback
   pull_request:
     types: [closed]  # For IDAD agent on merge
+  pull_request_review_comment:
+    types: [created]  # For human PR review feedback
   
   # Explicit dispatch - agent-to-agent handoff
   workflow_dispatch:
@@ -87,7 +89,7 @@ jobs:
           AGENT=""
           ISSUE=""
           PR=""
-          
+
           # === WORKFLOW_DISPATCH: Explicit agent trigger ===
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             AGENT="${{ inputs.agent }}"
@@ -95,71 +97,107 @@ jobs:
             PR="${{ inputs.pr }}"
             SKIP="false"
             echo "📋 Manual dispatch: agent=$AGENT, issue=$ISSUE, pr=$PR"
-          
-          # === ISSUES.OPENED: Start chain with Issue Review ===
-          elif [[ "${{ github.event_name }}" == "issues" && "${{ github.event.action }}" == "opened" ]]; then
-            LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
-            if echo "$LABELS" | grep -q "idad:auto"; then
-              AGENT="issue-review"
-              ISSUE="${{ github.event.issue.number }}"
-              SKIP="false"
-              echo "📋 Issue opened with idad:auto: #$ISSUE"
-            else
-              echo "⏭️ Skipping: Issue #${{ github.event.issue.number }} does not have idad:auto label"
-            fi
-          
-          # === ISSUES.LABELED: Check if idad:auto was just added ===
+
+          # === ISSUES.LABELED: Check which idad:* label was added ===
           elif [[ "${{ github.event_name }}" == "issues" && "${{ github.event.action }}" == "labeled" ]]; then
-            if [[ "${{ github.event.label.name }}" == "idad:auto" ]]; then
-              AGENT="issue-review"
-              ISSUE="${{ github.event.issue.number }}"
-              SKIP="false"
-              echo "📋 idad:auto label added to issue #$ISSUE"
-            fi
-          
-          # === ISSUE_COMMENT: Check for plan review feedback ===
+            LABEL="${{ github.event.label.name }}"
+            ISSUE="${{ github.event.issue.number }}"
+
+            case "$LABEL" in
+              "idad:issue-review")
+                AGENT="issue-review"
+                SKIP="false"
+                echo "📋 idad:issue-review label added to issue #$ISSUE"
+                ;;
+              "idad:planning")
+                AGENT="planner"
+                SKIP="false"
+                echo "📋 idad:planning label added to issue #$ISSUE"
+                ;;
+              "idad:implementing")
+                AGENT="implementer"
+                SKIP="false"
+                echo "📋 idad:implementing label added to issue #$ISSUE"
+                ;;
+              *)
+                echo "⏭️ Skipping: Label $LABEL is not an agent trigger"
+                ;;
+            esac
+
+          # === ISSUE_COMMENT: Check for clarification or plan review feedback ===
           elif [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.action }}" == "created" ]]; then
             # Only process comments on issues (not PRs)
             if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
               ISSUE="${{ github.event.issue.number }}"
               LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
               COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
-              
-              # Check if issue has both idad:auto and state:plan-review
-              if echo "$LABELS" | grep -q "idad:auto" && echo "$LABELS" | grep -q "state:plan-review"; then
-                # Skip comments from bots/apps (they end with [bot])
-                if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
-                  echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
-                else
-                  AGENT="planner"
-                  SKIP="false"
-                  echo "📋 Human comment on plan-review issue #$ISSUE by $COMMENT_AUTHOR"
-                fi
+
+              # Skip comments from bots/apps (they end with [bot])
+              if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
+                echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
+              # Check if issue has idad:issue-needs-clarification - re-trigger issue review
+              elif echo "$LABELS" | grep -q "idad:issue-needs-clarification"; then
+                AGENT="issue-review"
+                SKIP="false"
+                echo "📋 Human comment on issue needing clarification #$ISSUE by $COMMENT_AUTHOR"
+              # Check if issue has idad:human-plan-review - trigger planner for feedback
+              elif echo "$LABELS" | grep -q "idad:human-plan-review"; then
+                AGENT="planner"
+                SKIP="false"
+                echo "📋 Human comment on plan-review issue #$ISSUE by $COMMENT_AUTHOR"
               else
-                echo "⏭️ Skipping: Issue #$ISSUE does not have idad:auto + state:plan-review labels"
+                echo "⏭️ Skipping: Issue #$ISSUE does not have idad:issue-needs-clarification or idad:human-plan-review label"
               fi
             else
-              echo "⏭️ Skipping: Comment on PR, not issue"
+              # This is a comment on a PR
+              PR="${{ github.event.issue.number }}"
+              LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
+              COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+
+              # Skip comments from bots
+              if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
+                echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
+              # Check if PR has idad:human-pr-review - human feedback triggers implementer
+              elif echo "$LABELS" | grep -q "idad:human-pr-review"; then
+                AGENT="implementer"
+                SKIP="false"
+                echo "📋 Human comment on PR #$PR during human-pr-review by $COMMENT_AUTHOR"
+              else
+                echo "⏭️ Skipping: PR #$PR does not have idad:human-pr-review label"
+              fi
             fi
-          
+
+          # === PR_REVIEW_COMMENT: Human PR review feedback ===
+          elif [[ "${{ github.event_name }}" == "pull_request_review_comment" && "${{ github.event.action }}" == "created" ]]; then
+            PR="${{ github.event.pull_request.number }}"
+            LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+
+            # Skip comments from bots
+            if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
+              echo "⏭️ Skipping: Review comment from bot ($COMMENT_AUTHOR)"
+            # Check if PR has idad:human-pr-review - human feedback triggers implementer
+            elif echo "$LABELS" | grep -q "idad:human-pr-review"; then
+              AGENT="implementer"
+              SKIP="false"
+              echo "📋 Human review comment on PR #$PR during human-pr-review by $COMMENT_AUTHOR"
+            else
+              echo "⏭️ Skipping: PR #$PR does not have idad:human-pr-review label"
+            fi
+
           # === PR.CLOSED (merged): Trigger IDAD agent for self-improvement ===
           elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "closed" ]]; then
             if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
-              LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
               BRANCH="${{ github.event.pull_request.head.ref }}"
-              
-              # Skip IDAD's own PRs and infrastructure (prevent loops)
+
+              # Skip IDAD's own PRs (prevent loops)
               if [[ "$BRANCH" =~ ^idad/ ]]; then
                 echo "⏭️ Skipping: IDAD's own branch ($BRANCH)"
-              elif echo "$LABELS" | grep -q "type:infrastructure"; then
-                echo "⏭️ Skipping: Infrastructure PR"
-              elif echo "$LABELS" | grep -q "idad:auto"; then
+              else
                 AGENT="idad"
                 PR="${{ github.event.pull_request.number }}"
                 SKIP="false"
-                echo "📋 PR merged with idad:auto: #$PR"
-              else
-                echo "⏭️ Skipping: Merged PR does not have idad:auto label"
+                echo "📋 PR merged: #$PR"
               fi
             else
               echo "⏭️ Skipping: PR closed without merge"
@@ -167,7 +205,7 @@ jobs:
           else
             echo "⏭️ Skipping: Unhandled event ${{ github.event_name }}/${{ github.event.action }}"
           fi
-          
+
           # === Select model for agent ===
           case "$AGENT" in
             planner)          MODEL="${{ env.MODEL_PLANNER }}" ;;
@@ -179,7 +217,7 @@ jobs:
             idad)             MODEL="${{ env.MODEL_IDAD }}" ;;
             *)                MODEL="${{ env.MODEL_DEFAULT }}" ;;
           esac
-          
+
           # Output results
           echo "agent=$AGENT" >> $GITHUB_OUTPUT
           echo "issue=$ISSUE" >> $GITHUB_OUTPUT

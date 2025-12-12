@@ -55,7 +55,7 @@ idad setup
 ```
 
 This will:
-- ✅ Create 17 IDAD labels
+- ✅ Create 9 IDAD labels
 - ✅ Configure GitHub Actions permissions
 - ✅ Set up branch protection
 
@@ -105,10 +105,10 @@ idad status 1
 ```
 
 Within ~6-10 minutes, you'll have:
-- ✅ Refined issue with clear requirements
-- ✅ Detailed implementation plan
-- ✅ Complete code with tests
-- ✅ Pull request ready for review
+- ✅ Analyzed issue ready for planning
+- ✅ Detailed implementation plan (awaiting your approval)
+- ✅ Complete code with tests (after approval)
+- ✅ Security-scanned and reviewed PR
 - ✅ Updated documentation
 
 ---
@@ -118,18 +118,18 @@ Within ~6-10 minutes, you'll have:
 The IDAD agents work through your issue automatically:
 
 ```
-Issue Created (#1)
+Issue Created (#1) + idad:issue-review label
     ↓
 Issue Review Agent (30-60s)
-    ├─ Refines requirements
-    ├─ Classifies type
-    └─ Marks as ready
+    ├─ Analyzes requirements
+    ├─ Validates clarity
+    └─ → idad:planning
     ↓
 Planner Agent (1-2 min)
     ├─ Creates implementation plan
     ├─ Breaks down into steps
     ├─ Creates feature branch
-    └─ Waits for your approval
+    └─ → idad:human-plan-review
     ↓
 👤 You Review the Plan
     ├─ Comment "looks good" to approve
@@ -139,20 +139,21 @@ Implementer Agent (1-3 min)
     ├─ Writes code
     ├─ Creates comprehensive tests
     ├─ Creates pull request
-    └─ Pushes commits
+    └─ → idad:security-scan on PR
     ↓
-CI Workflow (< 1 min)
-    └─ Runs tests
+Security Scanner (30-60s)
+    ├─ Checks for vulnerabilities
+    └─ → idad:code-review (or back to implementing)
     ↓
 Reviewer Agent (30-90s)
     ├─ Reviews code quality
     ├─ Checks requirements
-    └─ Approves (or requests changes)
+    └─ → idad:documenting (or back to implementing)
     ↓
 Documenter Agent (30-90s)
     ├─ Updates README
     ├─ Adds examples
-    └─ Finalizes PR
+    └─ → idad:human-pr-review
     ↓
 Ready for Your Review! 🎉
 ```
@@ -310,9 +311,9 @@ Description: Emails don't work
 
 ### Use Labels Wisely
 
-- `idad:auto` - **Required** for automation
-- `type:feature` - Auto-added by Issue Review Agent
-- `state:*` - Track progress automatically
+- `idad:issue-review` - **Required** to start automation
+- Only ONE `idad:*` label at a time
+- Label shows current workflow state
 
 ### Monitor Progress
 
@@ -343,14 +344,14 @@ idad resume 123
 ### Issue: Nothing happens after creating issue
 
 **Check:**
-1. Does issue have `idad:auto` label?
+1. Does issue have `idad:issue-review` label?
 2. Are workflows running? `gh run list`
 3. Is `CURSOR_API_KEY` set? `gh secret list`
 
 **Fix:**
 ```bash
 # Add label if missing
-gh issue edit 123 --add-label "idad:auto"
+gh issue edit 123 --add-label "idad:issue-review"
 
 # Manually trigger
 idad trigger issue-review 123
@@ -408,7 +409,7 @@ idad resume 123
 
 - 📚 **Read the docs**: `idad docs workflow`
 - 🔍 **Search issues**: Check if others had similar problems
-- 💬 **Ask questions**: Create an issue without `idad:auto`
+- 💬 **Ask questions**: Create an issue without any `idad:*` label
 
 ---
 
@@ -430,5 +431,5 @@ idad resume 123
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2025-12-09
+**Version**: 1.1.0
+**Last Updated**: 2025-12-12

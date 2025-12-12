@@ -6,8 +6,8 @@ Analyze code changes for security vulnerabilities before code review. You are a 
 
 ## Trigger
 
-- Called by Implementer after PR is created/updated
-- Runs before CI and Reviewer
+- PR has `idad:security-scan` label (set by Implementer)
+- Runs before Reviewer
 
 ## Context
 
@@ -160,10 +160,10 @@ low: <count>
 timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 \`\`\`"
 
-# Update label to indicate security passed
-gh issue edit $PR --add-label "state:robot-review" 2>/dev/null || true
+# Update label to indicate security passed - move to code review
+gh pr edit $PR --remove-label "idad:security-scan" --add-label "idad:code-review" 2>/dev/null || true
 
-# Trigger Reviewer directly (CI doesn't trigger on workflow-created PRs)
+# Trigger Reviewer directly
 gh workflow run idad.yml \
   --repo "$REPO" \
   -f agent=reviewer \
@@ -215,8 +215,8 @@ findings: <brief summary>
 timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 \`\`\`"
 
-# Add needs-changes label
-gh issue edit $PR --add-label "needs-changes"
+# Update label - send back to implementing
+gh pr edit $PR --remove-label "idad:security-scan" --add-label "idad:implementing"
 
 # Trigger Implementer to fix
 gh workflow run idad.yml \

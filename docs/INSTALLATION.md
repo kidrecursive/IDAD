@@ -113,7 +113,7 @@ curl -fsSL https://...install.sh | bash -s -- --cli claude
 .claude/
 ├── agents/           # 9 agent definitions
 └── rules/
-    └── system.md     # System context
+    └── system.mdc    # System context (same format for both CLIs)
 
 .github/workflows/
 └── idad.yml          # Main workflow (CI created by IDAD agent when needed)
@@ -199,20 +199,26 @@ The installer configures these automatically. To verify:
 
 ### Labels
 
-The installer creates these labels automatically:
+The installer creates these 9 labels automatically:
 
-**Type labels:**
-- `type:issue`, `type:epic`, `type:bug`, `type:documentation`, `type:question`, `type:infrastructure`
+**IDAD workflow labels:**
+| Label | Purpose |
+|-------|---------|
+| `idad:issue-review` | Issue Review Agent analyzing |
+| `idad:issue-needs-clarification` | Issue needs human input |
+| `idad:planning` | Planner creating plan |
+| `idad:human-plan-review` | Human reviewing plan |
+| `idad:implementing` | Implementer writing code |
+| `idad:security-scan` | Security Scanner analyzing |
+| `idad:code-review` | Reviewer Agent reviewing |
+| `idad:documenting` | Documenter updating docs |
+| `idad:human-pr-review` | Final human review |
 
-**State labels:**
-- `state:issue-review`, `state:ready`, `state:planning`, `state:plan-review`, `state:implementing`, `state:robot-review`, `state:robot-docs`, `state:human-review`
-
-**Control labels:**
-- `idad:auto`, `needs-clarification`, `needs-changes`
+**Important**: Only ONE `idad:*` label per issue/PR at a time.
 
 Verify:
 ```bash
-gh label list | grep -E "(idad|type:|state:)"
+gh label list | grep "idad:"
 ```
 
 ### Model Configuration
@@ -261,7 +267,7 @@ gh secret list
 ```bash
 gh issue create \
   --title "Test IDAD installation" \
-  --label "idad:auto" \
+  --label "idad:issue-review" \
   --body "This is a test issue to verify IDAD is working."
 
 # Watch the workflow
@@ -269,12 +275,13 @@ gh run list --workflow=idad.yml --limit 5
 ```
 
 **Expected:**
-1. Issue created with `idad:auto` label
+1. Issue created with `idad:issue-review` label
 2. IDAD workflow triggers
 3. Issue Review Agent runs
-4. Labels change to `state:ready`
+4. Label changes to `idad:planning`
 5. Planner Agent runs
 6. Implementation plan added to issue
+7. Label changes to `idad:human-plan-review` (waits for your approval)
 
 ---
 
@@ -369,9 +376,15 @@ gh secret delete IDAD_APP_PRIVATE_KEY
 gh secret delete CURSOR_API_KEY      # or ANTHROPIC_API_KEY
 
 # 3. Delete labels (optional)
-gh label delete "idad:auto"
-gh label delete "state:issue-review"
-# ... etc
+gh label delete "idad:issue-review"
+gh label delete "idad:issue-needs-clarification"
+gh label delete "idad:planning"
+gh label delete "idad:human-plan-review"
+gh label delete "idad:implementing"
+gh label delete "idad:security-scan"
+gh label delete "idad:code-review"
+gh label delete "idad:documenting"
+gh label delete "idad:human-pr-review"
 
 # 4. Uninstall GitHub App (optional)
 # Go to https://github.com/settings/installations
@@ -405,7 +418,7 @@ After installation:
 
 1. **Create your first issue:**
    ```bash
-   gh issue create --title "My feature" --label "idad:auto" --body "Description"
+   gh issue create --title "My feature" --label "idad:issue-review" --body "Description"
    ```
 
 2. **Watch agents work:**
@@ -428,4 +441,4 @@ After installation:
 
 ---
 
-**Last Updated**: 2025-12-11
+**Last Updated**: 2025-12-12

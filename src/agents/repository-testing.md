@@ -175,8 +175,8 @@ if [ -z "$REPO" ]; then
 fi
 echo "✓ Repository: $REPO"
 
-# Check required labels
-REQUIRED_LABELS="idad:auto type:issue type:bug state:issue-review state:ready state:planning state:plan-review state:implementing state:robot-review state:human-review needs-clarification needs-changes"
+# Check required labels (new simplified system - 9 labels)
+REQUIRED_LABELS="idad:issue-review idad:issue-needs-clarification idad:planning idad:human-plan-review idad:implementing idad:security-scan idad:code-review idad:documenting idad:human-pr-review"
 MISSING_LABELS=""
 
 EXISTING_LABELS=$(gh label list --repo "$REPO" --json name -q '.[].name' 2>/dev/null)
@@ -191,11 +191,11 @@ if [ -n "$MISSING_LABELS" ]; then
   echo "❌ FAIL: Missing labels:$MISSING_LABELS"
   echo ""
   echo "   To create missing labels, run the installer again or create manually:"
-  echo "   gh label create \"idad:auto\" --color \"c5def5\" --description \"Enable IDAD automation\""
+  echo "   gh label create \"idad:issue-review\" --color \"c5def5\" --description \"Issue Review Agent analyzing\""
   exit 1
 fi
 
-LABEL_COUNT=$(echo "$EXISTING_LABELS" | grep -E "(idad:|type:|state:|needs-)" | wc -l)
+LABEL_COUNT=$(echo "$EXISTING_LABELS" | grep -E "^idad:" | wc -l)
 echo "✓ Found $LABEL_COUNT IDAD labels"
 
 echo ""
@@ -369,7 +369,7 @@ echo "Test ID: $TIMESTAMP"
 # Create the test issue
 ISSUE_NUM=$(gh issue create \
   --title "IDAD E2E Test: Add test greeting function ($TIMESTAMP)" \
-  --label "idad:auto" \
+  --label "idad:issue-review" \
   --body "## Description
 
 This is an automated end-to-end test of the IDAD pipeline.
@@ -420,10 +420,10 @@ echo "Run this to watch: gh run watch \$(gh run list --workflow=idad.yml --limit
 ```
 
 **Expected outcome:**
-- Issue gets `type:issue` label added
-- Issue gets `state:ready` label
+- Issue label changes to `idad:planning` (if issue is ready)
+- OR issue label changes to `idad:issue-needs-clarification` (if needs more info)
 - Comment from Issue Review agent with analysis
-- Planner agent triggered automatically
+- Planner agent triggered automatically (if ready)
 
 **Verify:**
 ```bash
@@ -446,10 +446,9 @@ gh run list --workflow=idad.yml --limit 5
 ```
 
 **Expected outcome:**
-- Issue gets `state:planning` label (briefly)
 - Implementation plan comment added to issue
 - Feature branch created: `feat/issue-{NUM}-*`
-- Issue gets `state:plan-review` label
+- Issue label changes to `idad:human-plan-review`
 - **Planner waits for human feedback** (does NOT trigger Implementer yet)
 
 **Verify:**
@@ -457,8 +456,8 @@ gh run list --workflow=idad.yml --limit 5
 # Check for implementation plan in comments
 gh issue view $ISSUE_NUM --comments | grep -A 50 "Implementation Plan"
 
-# Check issue has state:plan-review label
-gh issue view $ISSUE_NUM --json labels -q '.labels[].name' | grep "state:plan-review"
+# Check issue has idad:human-plan-review label
+gh issue view $ISSUE_NUM --json labels -q '.labels[].name' | grep "idad:human-plan-review"
 
 # Check for branch
 git fetch origin
@@ -506,14 +505,14 @@ The Planner has created an implementation plan and is waiting for your approval.
 
 **Expected outcome after approval:**
 - Planner posts confirmation comment
-- Issue label changes from `state:plan-review` to `state:implementing`
+- Issue label changes from `idad:human-plan-review` to `idad:implementing`
 - Implementer agent is triggered
 
 **Verify:**
 ```bash
 # Check labels changed
 gh issue view $ISSUE_NUM --json labels -q '.labels[].name'
-# Should show state:implementing, NOT state:plan-review
+# Should show idad:implementing, NOT idad:human-plan-review
 
 # Check for Planner's approval confirmation
 gh issue view $ISSUE_NUM --comments | grep -A 10 "Plan Approved"
@@ -535,8 +534,7 @@ gh run list --workflow=idad.yml --limit 5
 **Expected outcome:**
 - Code files created on feature branch
 - Tests written
-- PR created with implementation details
-- `state:implementing` label on issue (briefly)
+- PR created with `idad:security-scan` label
 - Security Scanner triggered
 
 **Verify:**
@@ -602,8 +600,8 @@ gh run list --workflow=idad.yml --limit 5
 **Expected outcome:**
 - Code review comment on PR
 - PR approved OR changes requested
-- If approved: Documenter triggered
-- If changes requested: Issue gets `needs-changes` label
+- If approved: PR gets `idad:documenting` label, Documenter triggered
+- If changes requested: PR gets `idad:implementing` label, Implementer re-triggered
 
 **Verify:**
 ```bash
@@ -627,7 +625,7 @@ gh run list --workflow=idad.yml --limit 5
 
 **Expected outcome:**
 - Documentation review/updates
-- PR gets `state:human-review` label
+- PR gets `idad:human-pr-review` label
 - Comment indicating ready for human review
 
 **Verify:**
@@ -635,7 +633,7 @@ gh run list --workflow=idad.yml --limit 5
 # Check labels
 gh pr view $PR_NUM --json labels -q '.labels[].name'
 
-# Should include state:human-review
+# Should include idad:human-pr-review
 ```
 
 ### Step 10: Human Gate - Review and Merge PR
@@ -713,17 +711,17 @@ After completing all steps, you should have verified:
 
 | Step | Agent | Expected Outcome |
 |------|-------|------------------|
-| 1 | - | Test issue created |
-| 2 | Issue Review | Issue classified, labels added |
-| 3 | Planner | Implementation plan created, waiting for approval |
-| 4 | **Human** | Review and approve/modify plan |
-| 5 | Implementer | Code written, PR created |
-| 6 | Security Scanner | Security analysis complete |
+| 1 | - | Test issue created with `idad:issue-review` |
+| 2 | Issue Review | Label → `idad:planning` (or `idad:issue-needs-clarification`) |
+| 3 | Planner | Plan created, label → `idad:human-plan-review` |
+| 4 | **Human** | Review and approve plan |
+| 5 | Implementer | Code written, PR with `idad:security-scan` |
+| 6 | Security Scanner | PR label → `idad:code-review` |
 | 7 | CI | Tests pass |
-| 8 | Reviewer | Code review complete |
-| 9 | Documenter | Docs updated, ready for human |
-| 10 | **Human** | PR approved and merged |
-| 11 | IDAD | Self-improvement analysis |
+| 8 | Reviewer | PR label → `idad:documenting` |
+| 9 | Documenter | PR label → `idad:human-pr-review` |
+| 10 | **Human** | PR reviewed and merged |
+| 11 | IDAD | Self-improvement analysis (creates issue if needed) |
 | 12 | - | Issue closed, code merged |
 
 **Report results:**
@@ -774,8 +772,8 @@ timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 # Check issue has correct label
 gh issue view $ISSUE_NUM --json labels
 
-# Manually trigger if needed
-gh workflow run idad.yml -f agent="issue-review" -f issue="$ISSUE_NUM"
+# Manually add label to trigger if needed
+gh issue edit $ISSUE_NUM --add-label "idad:issue-review"
 ```
 
 ### Agent fails
@@ -874,7 +872,7 @@ When you run these tests, report results in this format:
 |------|--------|---------|
 | File Structure | ✅ PASS | 8 agents, rules, workflows |
 | Workflow Config | ✅ PASS | Correct paths and secrets |
-| GitHub Labels | ✅ PASS | 16 labels found |
+| GitHub Labels | ✅ PASS | 9 labels found |
 | Secrets | ✅ PASS | All 3 secrets configured |
 | Permissions | ✅ PASS | Write access enabled |
 | Trigger Test | ⏭ SKIP | Optional |
@@ -917,7 +915,7 @@ gh secret set CURSOR_API_KEY  # or ANTHROPIC_API_KEY
 
 Re-run the installer (it creates labels), or create manually:
 ```bash
-gh label create "idad:auto" --color "c5def5" --description "Enable IDAD automation"
+gh label create "idad:issue-review" --color "c5def5" --description "Issue Review Agent analyzing"
 ```
 
 ### "Could not trigger workflow"
@@ -933,4 +931,4 @@ gh label create "idad:auto" --color "c5def5" --description "Enable IDAD automati
 
 This agent helps users verify their IDAD installation is complete and working. Run all non-destructive tests (1-5) first. Only run tests 6-7 if you want to actually trigger workflows and create issues.
 
-After successful verification, users can confidently create issues with the `idad:auto` label knowing the agent chain will work.
+After successful verification, users can confidently create issues with the `idad:issue-review` label knowing the agent chain will work.

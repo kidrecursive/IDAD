@@ -20,30 +20,33 @@ Complete reference for all IDAD agents.
 
 ## Agent Overview
 
-IDAD uses 7 specialized agents that collaborate to deliver features:
+IDAD uses 8 specialized agents that collaborate to deliver features:
 
 | Agent | Purpose | Trigger | Duration |
 |-------|---------|---------|----------|
-| Issue Review | Refine & classify issues | Issue created | 30-60s |
-| Planner | Create implementation plan | state:ready OR plan feedback | 1-2 min |
-| Implementer | Write code & tests | state:implementing | 1-3 min |
-| Reviewer | Code review | CI passes | 30-90s |
-| Documenter | Update docs | PR approved | 30-90s |
+| Issue Review | Analyze & validate issues | `idad:issue-review` | 30-60s |
+| Planner | Create implementation plan | `idad:planning` OR `idad:human-plan-review` | 1-2 min |
+| Implementer | Write code & tests | `idad:implementing` | 1-3 min |
+| Security Scanner | Check vulnerabilities | `idad:security-scan` | 30-60s |
+| Reviewer | Code review | `idad:code-review` | 30-90s |
+| Documenter | Update docs | `idad:documenting` | 30-90s |
 | IDAD | System improvements | PR merged | 1-2 min |
 | Reporting | Generate metrics | Scheduled/manual | 2-4 min |
 
 **Note**: After Planner creates a plan, a **human review step** is required before Implementer runs.
+
+**Important**: Only ONE `idad:*` label per issue/PR at a time.
 
 ---
 
 ## Issue Review Agent
 
 ### Purpose
-Refines issue descriptions and classifies issues by type.
+Analyzes issue descriptions and validates requirements.
 
 ### Trigger
-- Event: `issues.opened`
-- Condition: Has `idad:auto` label
+- Event: `issues.labeled`
+- Condition: Has `idad:issue-review` label
 
 ### Inputs
 - Issue number
@@ -51,22 +54,20 @@ Refines issue descriptions and classifies issues by type.
 - Issue author
 
 ### Outputs
-- Refined issue description (or clarifying questions)
-- Type label (`type:feature`, `type:bug`, etc.)
-- State label (`state:ready` or `needs-clarification`)
+- Analysis comment (or clarifying questions)
+- Label transition: `idad:planning` (ready) or `idad:issue-needs-clarification` (unclear)
 - Comment with agentlog
 
 ### Responsibilities
 - Read and understand issue requirements
 - Ask clarifying questions if needed
-- Classify issue type
 - Ensure requirements are clear and actionable
-- Set appropriate labels
+- Transition to appropriate label
 
 ### Decision Logic
-- If clear → Add type label, set `state:ready`
-- If unclear → Add `needs-clarification`, post questions
-- If question/discussion → Add `type:question`, may close
+- If clear → Set `idad:planning`, trigger Planner
+- If unclear → Set `idad:issue-needs-clarification`, post questions
+- When human clarifies on `idad:issue-needs-clarification` → Re-analyze
 
 ### Git Identity
 ```
@@ -77,11 +78,8 @@ Issue Review Agent <issue-review@agents.local>
 ```markdown
 ### 🤖 Issue Review Agent
 
-**Classification**: Feature
-
 **Assessment**: The issue description is clear and actionable.
 
-**Type**: type:feature
 **Next Step**: Planner Agent will create implementation plan
 
 ---
@@ -89,7 +87,6 @@ Issue Review Agent <issue-review@agents.local>
 agent: issue-review
 issue: 123
 status: success
-classification: feature
 timestamp: 2025-12-09T10:00:00Z
 ```
 ```
@@ -98,9 +95,9 @@ timestamp: 2025-12-09T10:00:00Z
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="issue-review" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="issue-review" \
+  -f issue="123" \
+  -f pr=""
 ```
 
 ---
@@ -111,20 +108,19 @@ gh workflow run idad.yml \
 Creates detailed implementation plans for issues and handles human feedback on plans.
 
 ### Trigger
-- Condition: Issue has `state:ready` label (initial planning)
-- Condition: Comment on issue with `state:plan-review` label (plan review)
+- Condition: Issue has `idad:planning` label (initial planning)
+- Condition: Comment on issue with `idad:human-plan-review` label (plan review)
 - Modes: Issue mode, Plan Review mode, or Epic mode
 
 ### Inputs
 - Issue number
 - Issue requirements
-- Issue type
 - Human feedback (in Plan Review mode)
 
 ### Outputs
 - Implementation plan (added to issue body)
 - Branch name
-- State label (`state:plan-review` initially, `state:implementing` after approval)
+- Label transition: `idad:human-plan-review` (initially) or `idad:implementing` (after approval)
 - Comment with agentlog
 
 ### Responsibilities
@@ -143,17 +139,18 @@ Creates detailed implementation plans for issues and handles human feedback on p
 - Creates single implementation plan
 - Adds plan to issue body
 - Creates feature branch
-- Sets `state:plan-review`
+- Sets `idad:human-plan-review`
 - **Waits for human approval**
 
-**Plan Review Mode** (new!):
-- Triggered when human comments on `state:plan-review` issue
+**Plan Review Mode**:
+- Triggered when human comments on `idad:human-plan-review` issue
 - Reads human feedback
-- If changes requested: Updates plan, stays in `state:plan-review`
-- If approved: Triggers Implementer, sets `state:implementing`
+- If changes requested: Updates plan, sets `idad:planning`
+- If approved: Triggers Implementer, sets `idad:implementing`
 
-**Epic Mode** (`type:epic`):
-- Creates multiple sub-issues
+**Epic Mode**:
+- Detects epic issues
+- Creates multiple sub-issues with `idad:planning` (well-defined)
 - Each sub-issue gets own plan
 - Links sub-issues to parent
 - Each sub-issue follows normal workflow (including plan review)
@@ -189,9 +186,9 @@ Planner Agent <planner@agents.local>
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="planner" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="planner" \
+  -f issue="123" \
+  -f pr=""
 ```
 
 ---
@@ -202,7 +199,7 @@ gh workflow run idad.yml \
 Implements the plan by writing code and tests.
 
 ### Trigger
-- Condition: Issue has `state:implementing` label
+- Condition: Issue has `idad:implementing` label
 
 ### Inputs
 - Issue number
@@ -263,9 +260,63 @@ Workflow-Run: 20123456789
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="implementer" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="implementer" \
+  -f issue="123" \
+  -f pr=""
+```
+
+---
+
+## Security Scanner
+
+### Purpose
+Checks PR code for security vulnerabilities.
+
+### Trigger
+- Condition: PR has `idad:security-scan` label
+
+### Inputs
+- PR number
+- PR code changes
+
+### Outputs
+- Security scan results comment
+- Label transition: `idad:code-review` (pass) or `idad:implementing` (block)
+- Comment with agentlog
+
+### Security Checks
+- Hardcoded secrets, API keys, credentials
+- SQL injection vulnerabilities
+- XSS vulnerabilities
+- Command injection
+- Path traversal
+- Insecure dependencies
+- OWASP top 10 issues
+
+### Decisions
+
+**Pass**:
+- No security issues found
+- Sets `idad:code-review`
+- Triggers Reviewer Agent
+
+**Block**:
+- Security issues detected
+- Sets `idad:implementing`
+- Triggers Implementer to fix
+
+### Git Identity
+```
+Security Scanner Agent <security-scanner@agents.local>
+```
+
+### Manual Invocation
+```bash
+gh workflow run idad.yml \
+  --ref main \
+  -f agent="security-scanner" \
+  -f issue="" \
+  -f pr="456"
 ```
 
 ---
@@ -276,8 +327,7 @@ gh workflow run idad.yml \
 Performs code review and quality assessment.
 
 ### Trigger
-- Condition: CI passes on PR
-- PR has automated labels
+- Condition: PR has `idad:code-review` label
 
 ### Inputs
 - PR number
@@ -287,14 +337,12 @@ Performs code review and quality assessment.
 ### Outputs
 - PR review (approve or request changes)
 - Review comments
-- State label update
-- Triggers next agent
+- Label transition: `idad:documenting` (approved) or `idad:implementing` (changes)
 
 ### Review Criteria
 - **Requirements**: All acceptance criteria met?
 - **Code Quality**: Clean, maintainable, follows patterns?
 - **Testing**: Comprehensive test coverage?
-- **Security**: No vulnerabilities or hardcoded secrets?
 - **Error Handling**: Edge cases handled?
 - **Documentation**: Code comments where needed?
 
@@ -304,7 +352,7 @@ Performs code review and quality assessment.
 - All criteria met
 - Minor issues acceptable
 - Posts approval review
-- Sets `state:robot-docs`
+- Sets `idad:documenting`
 - Triggers Documenter
 
 **Request Changes**:
@@ -312,7 +360,7 @@ Performs code review and quality assessment.
 - Missing requirements
 - Inadequate tests
 - Posts detailed feedback
-- Adds `needs-changes`
+- Sets `idad:implementing`
 - Triggers Implementer (to fix)
 
 ### Git Identity
@@ -330,9 +378,9 @@ Reviewer Agent <reviewer@agents.local>
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="reviewer" \
-  -f issue_number="123" \
-  -f pr_number="456"
+  -f agent="reviewer" \
+  -f issue="123" \
+  -f pr="456"
 ```
 
 ---
@@ -343,7 +391,7 @@ gh workflow run idad.yml \
 Updates documentation and finalizes PR.
 
 ### Trigger
-- Condition: PR has `state:robot-docs` label
+- Condition: PR has `idad:documenting` label
 
 ### Inputs
 - PR number
@@ -353,7 +401,7 @@ Updates documentation and finalizes PR.
 ### Outputs
 - Updated documentation (README, etc.)
 - Finalized PR description
-- State label (`state:human-review`)
+- Label transition: `idad:human-pr-review`
 - Summary comment
 - **No further agent trigger** (end of automation)
 
@@ -364,7 +412,7 @@ Updates documentation and finalizes PR.
 - Add usage examples
 - Clean up temporary files
 - Finalize PR description
-- Set `state:human-review`
+- Set `idad:human-pr-review`
 - Post summary comment
 
 ### Documentation Standards
@@ -404,9 +452,9 @@ After Documenter completes, the PR is ready for human review.
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="documenter" \
-  -f issue_number="123" \
-  -f pr_number="456"
+  -f agent="documenter" \
+  -f issue="123" \
+  -f pr="456"
 ```
 
 ---
@@ -419,9 +467,7 @@ Self-improvement - updates the IDAD system based on repository evolution.
 ### Trigger
 - Event: `pull_request.closed` with `merged == true`
 - Conditions:
-  - PR has `idad:auto` label
-  - PR does NOT have `type:infrastructure`
-  - Branch does NOT start with `idad/`
+  - Branch does NOT start with `idad/` (prevents loops)
 
 ### Inputs
 - PR number
@@ -429,9 +475,8 @@ Self-improvement - updates the IDAD system based on repository evolution.
 - Files modified
 
 ### Outputs
-- Improvement PR (if needed)
+- Improvement issue with `idad:issue-review` (if needed)
 - Analysis comment
-- No label changes
 
 ### Responsibilities
 - Analyze merged changes
@@ -449,26 +494,23 @@ Self-improvement - updates the IDAD system based on repository evolution.
 ### Loop Prevention
 Multiple safeguards prevent infinite loops:
 - ✅ Skips branches starting with `idad/`
-- ✅ Skips PRs with `type:infrastructure`
-- ✅ Skips PRs without `idad:auto`
-- ✅ Never adds `idad:auto` to improvement PRs
-- ✅ Improvement PRs require human review
+- ✅ Creates issues (not PRs), going through full workflow
+- ✅ Improvement issues require human plan approval and PR review
 
 ### Git Identity
 ```
 IDAD Agent <idad@agents.local>
 ```
 
-### Improvement PR Format
-```
+### Improvement Issue Format
+```markdown
 Title: Improve IDAD system: Add Python support
-Branch: idad/improve-1234567890
-Labels: type:infrastructure (NO idad:auto)
-Base: main
+Labels: idad:issue-review
 
 Contains:
-- CI workflow updates
-- Agent definition updates
+- Analysis of detected technologies
+- Proposed CI workflow updates
+- Proposed agent definition updates
 ```
 
 ### Conservative Approach
@@ -481,9 +523,9 @@ IDAD Agent is intentionally conservative:
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="idad" \
-  -f issue_number="" \
-  -f pr_number="456"
+  -f agent="idad" \
+  -f issue="" \
+  -f pr="456"
 ```
 
 ---
@@ -553,17 +595,17 @@ Reporting Agent <reporting@agents.local>
 # Weekly report
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="reporting" \
-  -f issue_number="" \
-  -f pr_number=""
+  -f agent="reporting" \
+  -f issue="" \
+  -f pr=""
 
 # Custom period (set env vars)
 REPORT_TYPE=custom LOOKBACK_DAYS=14 \
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="reporting" \
-  -f issue_number="" \
-  -f pr_number=""
+  -f agent="reporting" \
+  -f issue="" \
+  -f pr=""
 ```
 
 ---
@@ -582,15 +624,16 @@ gh workflow run idad.yml \
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="<agent-name>" \
-  -f issue_number="<number>" \
-  -f pr_number="<number>"
+  -f agent="<agent-name>" \
+  -f issue="<number>" \
+  -f pr="<number>"
 ```
 
 ### Agent Names
 - `issue-review`
 - `planner`
 - `implementer`
+- `security-scanner`
 - `reviewer`
 - `documenter`
 - `idad`
@@ -598,11 +641,12 @@ gh workflow run idad.yml \
 
 ### Which Parameters Are Required?
 
-| Agent | issue_number | pr_number |
-|-------|--------------|-----------|
+| Agent | issue | pr |
+|-------|-------|-----|
 | issue-review | ✅ Required | ❌ Empty |
 | planner | ✅ Required | ❌ Empty |
 | implementer | ✅ Required | ⚠️ Optional |
+| security-scanner | ⚠️ Optional | ✅ Required |
 | reviewer | ⚠️ Optional | ✅ Required |
 | documenter | ⚠️ Optional | ✅ Required |
 | idad | ❌ Empty | ✅ Required |
@@ -613,33 +657,39 @@ gh workflow run idad.yml \
 ```bash
 # Trigger Issue Review for issue #123
 gh workflow run idad.yml --ref main \
-  -f agent_type="issue-review" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="issue-review" \
+  -f issue="123" \
+  -f pr=""
 
 # Trigger Implementer (with existing PR)
 gh workflow run idad.yml --ref main \
-  -f agent_type="implementer" \
-  -f issue_number="123" \
-  -f pr_number="456"
+  -f agent="implementer" \
+  -f issue="123" \
+  -f pr="456"
+
+# Trigger Security Scanner for PR #456
+gh workflow run idad.yml --ref main \
+  -f agent="security-scanner" \
+  -f issue="" \
+  -f pr="456"
 
 # Trigger Reviewer for PR #456
 gh workflow run idad.yml --ref main \
-  -f agent_type="reviewer" \
-  -f issue_number="" \
-  -f pr_number="456"
+  -f agent="reviewer" \
+  -f issue="" \
+  -f pr="456"
 
 # Trigger IDAD Agent to analyze PR #456
 gh workflow run idad.yml --ref main \
-  -f agent_type="idad" \
-  -f issue_number="" \
-  -f pr_number="456"
+  -f agent="idad" \
+  -f issue="" \
+  -f pr="456"
 
 # Trigger Reporting
 gh workflow run idad.yml --ref main \
-  -f agent_type="reporting" \
-  -f issue_number="" \
-  -f pr_number=""
+  -f agent="reporting" \
+  -f issue="" \
+  -f pr=""
 ```
 
 ---
@@ -650,13 +700,15 @@ All agent definitions are in `.cursor/agents/`:
 
 ```
 .cursor/agents/
-├── issue-review.md    # Issue Review Agent (300+ lines)
-├── planner.md         # Planner Agent (700+ lines)
-├── implementer.md     # Implementer Agent (600+ lines)
-├── reviewer.md        # Reviewer Agent (600+ lines)
-├── documenter.md      # Documenter Agent (700+ lines)
-├── idad.md            # IDAD Agent (500+ lines)
-└── reporting.md       # Reporting Agent (600+ lines)
+├── issue-review.md      # Issue Review Agent
+├── planner.md           # Planner Agent
+├── implementer.md       # Implementer Agent
+├── security-scanner.md  # Security Scanner Agent
+├── reviewer.md          # Reviewer Agent
+├── documenter.md        # Documenter Agent
+├── idad.md              # IDAD Agent
+├── reporting.md         # Reporting Agent
+└── repository-testing.md # Repository Testing Agent
 ```
 
 Each file contains:
@@ -686,11 +738,13 @@ gh workflow run idad.yml \
 ### Chain Diagram
 
 ```
-Issue Review ──► Planner ──► [Human Plan Review] ──► Implementer ──► CI ──► Reviewer ──┬──► Documenter ──► [Human PR Review]
-                    ↑               │                                                   │
-                    └───────────────┘ (if plan changes requested)                       └──► Implementer (if code changes needed)
+Issue Review ──► Planner ──► [Human Plan Review] ──► Implementer ──► Security Scanner ──► Reviewer ──┬──► Documenter ──► [Human PR Review]
+                    ↑               │                     ↑                    │                     │        │
+                    └───────────────┘ (changes)          │                    │                     │        └──► Implementer (human comments)
+                                                          │                    └─────────────────────┤
+                                                          └────────────────────────────────────────────┘ (changes needed)
 
-[Human Merge] ──► IDAD Agent (analyzes for improvements)
+[Human Merge] ──► IDAD Agent (creates improvement issue if needed)
 ```
 
 ### Why Explicit Chaining?
@@ -814,5 +868,5 @@ Total: ~8 minutes
 
 ---
 
-**Last Updated**: 2025-12-09  
-**Phase**: 10 - Full Workflow Integration
+**Last Updated**: 2025-12-12
+**Phase**: 11 - Unified Label System

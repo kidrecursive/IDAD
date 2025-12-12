@@ -7,7 +7,7 @@ Update project documentation based on code changes and prepare pull requests for
 You are the Documenter Agent for the IDAD (Issue Driven Agentic Development) system. You are invoked after the Reviewer Agent approves a PR. Your job is to update all relevant documentation, clean up temporary files, and finalize the PR for human review. You are the **last automated agent** in the workflow.
 
 ## Trigger Conditions
-- PR has `state:robot-docs` label (set by Reviewer Agent)
+- PR has `idad:documenting` label (set by Reviewer Agent)
 - Event: Triggered by Reviewer Agent via `workflow_dispatch`
 
 ## Your Responsibilities
@@ -314,8 +314,8 @@ gh pr edit $PR_NUMBER --body "$UPDATED_BODY"
 ### 8. Update Labels
 
 ```bash
-# Remove robot-docs label, add human-review label
-gh issue edit $PR_NUMBER --remove-label "state:robot-docs" --add-label "state:human-review"
+# Remove documenting label, add human-pr-review label
+gh pr edit $PR_NUMBER --remove-label "idad:documenting" --add-label "idad:human-pr-review"
 
 echo "✅ PR marked ready for human review"
 ```
@@ -365,7 +365,7 @@ echo "  Documenter Agent Complete"
 echo "============================================="
 echo ""
 echo "✅ Documentation updated (or confirmed not needed)"
-echo "✅ PR marked state:human-review"
+echo "✅ PR marked idad:human-pr-review"
 echo "✅ Ready for human review and merge"
 echo ""
 echo "🎉 Automated workflow complete!"
@@ -584,7 +584,7 @@ timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 gh pr comment $PR_NUMBER --body "$ERROR_COMMENT"
 
 # Still mark for human review
-gh issue edit $PR_NUMBER --remove-label "state:robot-docs" --add-label "state:human-review" --add-label "needs-human-review"
+gh pr edit $PR_NUMBER --remove-label "idad:documenting" --add-label "idad:human-pr-review"
 
 exit 1
 ```
@@ -632,7 +632,7 @@ git push origin $BRANCH_NAME
 - ✅ Temporary files cleaned up
 - ✅ Documentation committed (if changes made)
 - ✅ PR description updated
-- ✅ Labels updated (state:human-review)
+- ✅ Labels updated (idad:human-pr-review)
 - ✅ Summary comment posted with agentlog
 - ✅ No further agent triggering (end of automation)
 
@@ -695,4 +695,4 @@ timestamp: 2025-12-07T23:20:00Z
 - Focus on making the PR ready for human review
 - Update documentation clearly and concisely
 - When in doubt, add a note for human reviewer
-- Mark the PR `state:human-review` when done
+- Mark the PR `idad:human-pr-review` when done

@@ -26,9 +26,8 @@ Common issues and solutions for the IDAD system.
 ```bash
 gh issue view <issue-number> --json labels
 ```
-- Should have `idad:auto` label
-- Should have `type:*` label after Issue Review
-- Should have `state:*` label showing progress
+- Should have an `idad:*` label showing current state
+- Only ONE `idad:*` label at a time
 
 **Check 2: Workflows**
 ```bash
@@ -51,31 +50,31 @@ gh issue view <issue-number>
 
 ### Issue: Created issue but nothing happens
 
-**Cause 1: Missing `idad:auto` label**
+**Cause 1: Missing `idad:issue-review` label**
 
 **Solution**:
 ```bash
-gh issue edit <issue-number> --add-label "idad:auto"
+gh issue edit <issue-number> --add-label "idad:issue-review"
 ```
 
-The `idad:auto` label is required (opt-in by design).
+The `idad:issue-review` label is required (opt-in by design).
 
 ---
 
-**Cause 2: Dispatcher not triggered**
+**Cause 2: Workflow not triggered**
 
 **Check**:
 ```bash
-gh run list --workflow=dispatcher.yml --limit 1
+gh run list --workflow=idad.yml --limit 1
 ```
 
 **Solution**: Manually trigger Issue Review Agent:
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="issue-review" \
-  -f issue_number="<number>" \
-  -f pr_number=""
+  -f agent="issue-review" \
+  -f issue="<number>" \
+  -f pr=""
 ```
 
 ---
@@ -106,7 +105,7 @@ permissions:
 
 ### Issue Review Agent
 
-**Problem**: Agent doesn't add `state:ready` label
+**Problem**: Agent doesn't transition to `idad:planning`
 
 **Debug**:
 ```bash
@@ -119,15 +118,15 @@ gh run view <run-id> --log | grep "Issue Review"
 - Workflow error (check logs)
 
 **Solution**:
-- If `needs-clarification` label: Answer questions in comments
+- If `idad:issue-needs-clarification` label: Answer questions in comments, agent will re-analyze
 - If error: Check workflow logs for details
 - Manual trigger if needed:
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="issue-review" \
-  -f issue_number="<number>" \
-  -f pr_number=""
+  -f agent="issue-review" \
+  -f issue="<number>" \
+  -f pr=""
 ```
 
 ---
@@ -143,7 +142,7 @@ gh run list --workflow=idad.yml --limit 5
 ```
 
 **Common Causes**:
-- Issue not marked `state:ready`
+- Issue not marked `idad:planning`
 - Agent not triggered
 - Workflow failure
 
@@ -151,14 +150,14 @@ gh run list --workflow=idad.yml --limit 5
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="planner" \
-  -f issue_number="<number>" \
-  -f pr_number=""
+  -f agent="planner" \
+  -f issue="<number>" \
+  -f pr=""
 ```
 
 ---
 
-**Problem**: Issue stuck in `state:plan-review`
+**Problem**: Issue stuck in `idad:human-plan-review`
 
 **Debug**:
 ```bash
@@ -189,8 +188,8 @@ gh issue view <issue-number> --comments | tail -20
 3. **Skip plan review** (force proceed): Update labels manually:
    ```bash
    gh issue edit <issue-number> \
-     --remove-label "state:plan-review" \
-     --add-label "state:implementing"
+     --remove-label "idad:human-plan-review" \
+     --add-label "idad:implementing"
    gh workflow run idad.yml \
      --ref main \
      -f agent="implementer" \
@@ -224,12 +223,38 @@ gh run view <run-id> --log | grep "Implementer"
 git push origin --delete feat/issue-<number>-description
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="implementer" \
-  -f issue_number="<number>" \
-  -f pr_number=""
+  -f agent="implementer" \
+  -f issue="<number>" \
+  -f pr=""
 ```
 
 **If tests failed**: Check workflow logs, fix locally if needed
+
+---
+
+### Security Scanner
+
+**Problem**: Scan not running
+
+**Debug**:
+```bash
+gh pr view <pr-number> --json labels
+gh run list --workflow=idad.yml --limit 5
+```
+
+**Common Causes**:
+- PR doesn't have `idad:security-scan` label
+- Agent not triggered
+- Workflow failure
+
+**Solution**: Manual trigger:
+```bash
+gh workflow run idad.yml \
+  --ref main \
+  -f agent="security-scanner" \
+  -f issue="" \
+  -f pr="<pr-number>"
+```
 
 ---
 
@@ -244,7 +269,7 @@ gh run list --workflow=idad.yml --limit 5
 ```
 
 **Common Causes**:
-- CI not completed
+- PR doesn't have `idad:code-review` label
 - Agent not triggered
 - GitHub API rate limit
 
@@ -252,9 +277,9 @@ gh run list --workflow=idad.yml --limit 5
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="reviewer" \
-  -f issue_number="<issue-number>" \
-  -f pr_number="<pr-number>"
+  -f agent="reviewer" \
+  -f issue="<issue-number>" \
+  -f pr="<pr-number>"
 ```
 
 ---
@@ -270,7 +295,7 @@ gh pr diff <pr-number> | grep README
 ```
 
 **Common Causes**:
-- PR not approved (still in state:robot-review)
+- PR not approved (still in `idad:code-review`)
 - Agent not triggered
 - No docs to update (empty commit)
 
@@ -278,28 +303,27 @@ gh pr diff <pr-number> | grep README
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="documenter" \
-  -f issue_number="<issue-number>" \
-  -f pr_number="<pr-number>"
+  -f agent="documenter" \
+  -f issue="<issue-number>" \
+  -f pr="<pr-number>"
 ```
 
 ---
 
 ### IDAD Agent
 
-**Problem**: No improvement PR after merge
+**Problem**: No improvement issue after merge
 
-**Expected Behavior**: IDAD only creates PRs when it detects system improvements needed
+**Expected Behavior**: IDAD only creates issues when it detects system improvements needed
 
 **Not a bug if**:
 - No new technologies detected
 - CI already supports the technology
-- PR was manual (no `idad:auto` label)
-- PR was infrastructure (`type:infrastructure`)
+- Branch started with `idad/` (loop prevention)
 
 **Debug**:
 ```bash
-gh run list --workflow=dispatcher.yml --event pull_request --limit 5
+gh run list --workflow=idad.yml --event pull_request --limit 5
 ```
 
 ---
@@ -346,12 +370,13 @@ gh workflow run idad.yml \
 gh run view <run-id> --log | grep "workflow run"
 ```
 
-**Solution**: Manually trigger next agent based on current state:
+**Solution**: Manually trigger next agent based on current label:
 
-**If `state:ready`**: Trigger Planner
-**If `state:implementing`**: Trigger Implementer
-**If `state:robot-review`** (after CI): Trigger Reviewer
-**If `state:robot-docs`**: Trigger Documenter
+**If `idad:planning`**: Trigger Planner
+**If `idad:implementing`**: Trigger Implementer
+**If `idad:security-scan`**: Trigger Security Scanner
+**If `idad:code-review`**: Trigger Reviewer
+**If `idad:documenting`**: Trigger Documenter
 
 ---
 
@@ -519,19 +544,16 @@ gh workflow run idad.yml \
 ### Reset Issue to Start Over
 
 ```bash
-# Remove all state labels
+# Remove all idad labels
 gh issue edit <issue-number> \
-  --remove-label "state:issue-review" \
-  --remove-label "state:ready" \
-  --remove-label "state:planning" \
-  --remove-label "state:plan-review" \
-  --remove-label "state:implementing" \
-  --remove-label "state:robot-review" \
-  --remove-label "state:robot-docs" \
-  --remove-label "state:human-review"
+  --remove-label "idad:issue-review" \
+  --remove-label "idad:issue-needs-clarification" \
+  --remove-label "idad:planning" \
+  --remove-label "idad:human-plan-review" \
+  --remove-label "idad:implementing"
 
-# Add idad:auto to restart
-gh issue edit <issue-number> --add-label "idad:auto"
+# Add idad:issue-review to restart
+gh issue edit <issue-number> --add-label "idad:issue-review"
 ```
 
 ---
@@ -539,15 +561,15 @@ gh issue edit <issue-number> --add-label "idad:auto"
 ### Skip to Specific Agent
 
 ```bash
-# Set appropriate state label
-gh issue edit <issue-number> --add-label "state:ready"
+# Set appropriate label
+gh issue edit <issue-number> --add-label "idad:planning"
 
 # Trigger specific agent
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="planner" \
-  -f issue_number="<number>" \
-  -f pr_number=""
+  -f agent="planner" \
+  -f issue="<number>" \
+  -f pr=""
 ```
 
 ---
@@ -775,11 +797,11 @@ Error: [paste error from logs]
 - Learn the workflow patterns
 
 ### Use Opt-In Wisely
-- Only add `idad:auto` when ready
-- Remove it to pause if needed
+- Only add `idad:issue-review` when ready
+- Remove the label to pause if needed
 - Can always work manually
 
 ---
 
-**Last Updated**: 2025-12-09  
-**Phase**: 10 - Full Workflow Integration
+**Last Updated**: 2025-12-12
+**Phase**: 11 - Unified Label System

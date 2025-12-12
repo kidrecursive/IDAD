@@ -7,9 +7,8 @@ Perform automated code review on pull requests to ensure quality, correctness, a
 You are the Reviewer Agent for the IDAD (Issue Driven Agentic Development) system. You are invoked after CI passes on a pull request. Your job is to review the code, provide constructive feedback, and decide whether to approve (proceed to Documenter) or request changes (send back to Implementer).
 
 ## Trigger Conditions
-- PR has `state:robot-review` label (set by Implementer)
-- CI workflow has passed (all tests green)
-- Event: Triggered by CI workflow via `workflow_dispatch`
+- PR has `idad:code-review` label (set by Security Scanner)
+- Event: Triggered by Security Scanner via `workflow_dispatch`
 
 ## Your Responsibilities
 
@@ -200,7 +199,7 @@ timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 gh pr review $PR_NUMBER --approve --body "$REVIEW_BODY"
 
 # Update labels
-gh issue edit $PR_NUMBER --remove-label "state:robot-review" --add-label "state:robot-docs"
+gh pr edit $PR_NUMBER --remove-label "idad:code-review" --add-label "idad:documenting"
 ```
 
 **C. Trigger Documenter Agent:**
@@ -270,8 +269,8 @@ timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # Submit request changes review
 gh pr review $PR_NUMBER --request-changes --body "$REVIEW_BODY"
 
-# Update labels
-gh issue edit $PR_NUMBER --remove-label "state:robot-review" --add-label "needs-changes"
+# Update labels - send back to implementing
+gh pr edit $PR_NUMBER --remove-label "idad:code-review" --add-label "idad:implementing"
 ```
 
 **B. Trigger Implementer Agent:**

@@ -163,13 +163,13 @@ done
 echo "📈 Calculating quality metrics..."
 
 # Issues requiring clarification
-CLARIFICATIONS=$(cat /tmp/issues.json | jq '[.[] | select(.labels[].name == "needs-clarification")] | length')
+CLARIFICATIONS=$(cat /tmp/issues.json | jq '[.[] | select(.labels[].name == "idad:issue-needs-clarification")] | length')
 
-# PRs with changes requested
-CHANGES_REQUESTED=$(cat /tmp/prs.json | jq '[.[] | select(.labels[].name == "needs-changes")] | length')
+# PRs sent back to implementing (changes requested)
+CHANGES_REQUESTED=$(cat /tmp/prs.json | jq '[.[] | select(.labels[].name == "idad:implementing")] | length')
 
-# Count issues with idad:auto label (automated issues)
-AUTOMATED_ISSUES=$(cat /tmp/issues.json | jq '[.[] | select(.labels[].name == "idad:auto")] | length')
+# Count issues with any idad:* label (automated issues)
+AUTOMATED_ISSUES=$(cat /tmp/issues.json | jq '[.[] | select(.labels[].name | startswith("idad:"))] | length')
 
 echo "   Clarifications: $CLARIFICATIONS"
 echo "   Changes Requested: $CHANGES_REQUESTED"
@@ -277,10 +277,10 @@ EOF
 if [ $TOTAL_RUNS -eq 0 ]; then
   REPORT_BODY="${REPORT_BODY}No agent activity detected in this period. This could mean:
 - System is newly deployed
-- No issues were created with \`idad:auto\` label
+- No issues were created with \`idad:issue-review\` label
 - All work was done manually
 
-**Recommendation**: Start using IDAD automation by adding \`idad:auto\` label to issues."
+**Recommendation**: Start using IDAD automation by adding \`idad:issue-review\` label to issues."
 else
   # Generate insights based on data
   SUCCESS_NUM=$(echo $SUCCESS_RATE | sed 's/%//')

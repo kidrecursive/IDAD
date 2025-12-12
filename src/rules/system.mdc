@@ -13,34 +13,45 @@ You are an AI agent in the **IDAD (Issue Driven Agentic Development)** system - 
 
 1. **Issue-first**: All work begins with a GitHub Issue
 2. **PR-first**: All code changes go through pull requests
-3. **Opt-in**: Only process issues/PRs with `idad:auto` label
-4. **Traceability**: Every action is logged with agentlog blocks
-5. **Agent Chain**: Each agent triggers the next via `gh workflow run`
+3. **Opt-in**: Add `idad:issue-review` label to start automation
+4. **Single Label**: Only ONE `idad:*` label per issue/PR at a time
+5. **Traceability**: Every action is logged with agentlog blocks
+6. **Agent Chain**: Each agent transitions the label to trigger the next
 
 ---
 
-## Agent Chain
+## Agent Chain & Label Flow
 
 ```
-Issue (idad:auto) → Issue Review → Planner → [Human Plan Review] → Implementer → Security Scanner → [CI] → Reviewer → Documenter → Human
-                                        ↑           ↑                                                          |
-                                        |           └──── (if changes to plan) ────┘                           |
-                                        └────────────────────── (if changes to code) ──────────────────────────┘
+idad:issue-review → idad:planning → idad:human-plan-review → idad:implementing
+        ↓                                    ↑ (human approves)      ↓
+idad:issue-needs-clarification ←─────────────┘ (human requests)  idad:security-scan
+        ↓ (human clarifies)                                         ↓
+idad:issue-review ←──────────────────────────────────────────── idad:code-review
+                                                                    ↓
+                                              idad:implementing ← (changes)
+                                                    ↓ (approved)
+                                              idad:documenting
+                                                    ↓
+                                              idad:human-pr-review
+                                                    ↓ (human comments)
+                                              idad:implementing (loops back)
 ```
 
-| Agent | Triggers Next |
-|-------|---------------|
-| Issue Review | → Planner |
-| Planner (new plan) | → **Human Plan Review** (waits for feedback) |
-| Planner (approved) | → Implementer |
-| Planner (changes) | → (updates plan, waits for feedback) |
-| Implementer | → Security Scanner |
-| Security Scanner | → (CI runs automatically) |
-| CI (on pass) | → Reviewer |
-| Reviewer (approved) | → Documenter |
-| Reviewer (changes) | → Implementer |
-| Documenter | → (end, human review) |
-| IDAD | → (creates improvement PR if needed) |
+| Agent | Label Transitions |
+|-------|-------------------|
+| Issue Review | `idad:issue-review` → `idad:planning` OR `idad:issue-needs-clarification` |
+| Planner (new) | `idad:planning` → `idad:human-plan-review` |
+| Planner (approved) | `idad:human-plan-review` → `idad:implementing` |
+| Planner (changes) | `idad:human-plan-review` → `idad:planning` |
+| Implementer | Creates PR with `idad:security-scan` |
+| Security Scanner (pass) | `idad:security-scan` → `idad:code-review` |
+| Security Scanner (block) | `idad:security-scan` → `idad:implementing` |
+| Reviewer (approved) | `idad:code-review` → `idad:documenting` |
+| Reviewer (changes) | `idad:code-review` → `idad:implementing` |
+| Documenter | `idad:documenting` → `idad:human-pr-review` |
+| Human PR comment | `idad:human-pr-review` → `idad:implementing` |
+| IDAD | Creates issue with `idad:issue-review` if improvements needed |
 
 ---
 
@@ -95,10 +106,10 @@ gh issue edit <num> --remove-label "label"
 gh issue comment <num> --body "message"
 
 # Create PR
-gh pr create --title "Title" --body "Body" --base main --label "idad:auto"
+gh pr create --title "Title" --body "Body" --base main --label "idad:security-scan"
 
-# Edit PR labels (use issue edit with PR number)
-gh issue edit <pr-num> --add-label "state:robot-review"
+# Edit PR labels
+gh pr edit <pr-num> --remove-label "idad:security-scan" --add-label "idad:code-review"
 
 # Comment on PR
 gh pr comment <num> --body "message"
@@ -160,30 +171,21 @@ git push origin <branch-name>
 
 ---
 
-## Labels System
+## Labels System (9 Labels)
 
-### Type Labels
-- `type:issue` - Standard issue
-- `type:epic` - Epic with child issues
-- `type:bug` - Bug fix
-- `type:documentation` - Documentation update
-- `type:question` - Question or discussion
-- `type:infrastructure` - IDAD system changes
+**Only ONE `idad:*` label per issue/PR at a time.**
 
-### State Labels
-- `state:issue-review` - Under issue review
-- `state:ready` - Ready for planning
-- `state:planning` - Being planned
-- `state:plan-review` - **Human reviewing implementation plan**
-- `state:implementing` - Being implemented
-- `state:robot-review` - Under code review
-- `state:robot-docs` - Documentation in progress
-- `state:human-review` - Ready for human review
-
-### Control Labels
-- `idad:auto` - **Enable IDAD automation** (opt-in required)
-- `needs-clarification` - Needs human clarification
-- `needs-changes` - Changes requested
+| Label | Purpose | Set By |
+|-------|---------|--------|
+| `idad:issue-review` | Issue Review Agent analyzing | User (opt-in) |
+| `idad:issue-needs-clarification` | Issue needs human input | Issue Review Agent |
+| `idad:planning` | Planner creating plan | Issue Review Agent |
+| `idad:human-plan-review` | Human reviewing plan | Planner Agent |
+| `idad:implementing` | Implementer writing code | Planner / Reviewer / Security / Human |
+| `idad:security-scan` | Security Scanner analyzing | Implementer Agent |
+| `idad:code-review` | Reviewer Agent reviewing | Security Scanner |
+| `idad:documenting` | Documenter updating docs | Reviewer Agent |
+| `idad:human-pr-review` | Final human review | Documenter Agent |
 
 ---
 
@@ -234,7 +236,7 @@ When errors occur:
 
 1. **Post an error comment** explaining what went wrong
 2. **Include troubleshooting steps** for humans
-3. **Add appropriate labels** (`needs-changes` or similar)
+3. **Transition to appropriate label** (e.g., back to `idad:implementing`)
 4. **Include agentlog** with `status: error`
 5. **Exit with non-zero code** so workflow shows as failed
 
@@ -270,22 +272,21 @@ timestamp: <ISO8601>
 2. **Always configure git identity** before commits
 3. **Always include git trailers** in commit messages
 4. **Always post agentlog** in summary comments
-5. **Always trigger next agent** via `gh workflow run`
-6. **Never add `idad:auto`** to infrastructure PRs
+5. **Always transition to next label** to trigger next agent
+6. **Only ONE `idad:*` label** at a time - remove old before adding new
 7. **Never skip error handling** - post informative comments
 
 ---
 
 ## Quick Reference
 
-### Trigger Next Agent
+### Transition Labels (Triggers Next Agent)
 ```bash
-gh workflow run idad.yml -f agent="planner" -f issue="123" -f pr=""
-```
+# Issue labels
+gh issue edit 123 --remove-label "idad:issue-review" --add-label "idad:planning"
 
-### Add Labels
-```bash
-gh issue edit 123 --add-label "state:ready" --remove-label "state:issue-review"
+# PR labels
+gh pr edit 456 --remove-label "idad:security-scan" --add-label "idad:code-review"
 ```
 
 ### Post Comment

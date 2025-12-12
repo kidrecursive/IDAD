@@ -123,7 +123,6 @@ case "$CLI_TYPE" in
     API_KEY_SECRET="ANTHROPIC_API_KEY"
     API_KEY_URL="https://console.anthropic.com/settings/keys"
     API_KEY_NAME="Anthropic API"
-    RULES_EXT="md"
     CLI_DISPLAY="Claude Code"
     ;;
   *)
@@ -133,7 +132,6 @@ case "$CLI_TYPE" in
     API_KEY_SECRET="CURSOR_API_KEY"
     API_KEY_URL="https://cursor.com/settings"
     API_KEY_NAME="Cursor API"
-    RULES_EXT="mdc"
     CLI_DISPLAY="Cursor Agent"
     ;;
 esac
@@ -187,27 +185,14 @@ mkdir -p .github/workflows
 cp -r "$TEMP_DIR/idad/src/agents/"* "$CONFIG_DIR/agents/"
 echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/agents/ (8 agent definitions)"
 
-# Copy rules file (CLI-specific extension)
-cp "$TEMP_DIR/idad/src/rules/system.$RULES_EXT" "$CONFIG_DIR/rules/"
-echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/rules/system.$RULES_EXT"
+# Copy rules file (same .mdc file for both CLIs)
+cp "$TEMP_DIR/idad/src/rules/system.mdc" "$CONFIG_DIR/rules/"
+echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/rules/system.mdc"
 
 # Copy workflow (CLI-specific) - only idad.yml, CI is created by IDAD agent if needed
 cp "$TEMP_DIR/idad/src/workflows/$WORKFLOW_FILE" .github/workflows/idad.yml
 echo -e "  ${GREEN}✓${NC} .github/workflows/idad.yml"
 echo -e "  ${YELLOW}ℹ${NC}  CI workflow will be created by IDAD agent based on your project"
-
-# Copy CLI-specific extras
-if [ "$CLI_TYPE" = "cursor" ]; then
-  if [ -f "$TEMP_DIR/idad/src/cursor/README.md" ]; then
-    cp "$TEMP_DIR/idad/src/cursor/README.md" "$CONFIG_DIR/"
-    echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/README.md"
-  fi
-elif [ "$CLI_TYPE" = "claude" ]; then
-  if [ -f "$TEMP_DIR/idad/src/claude/CLAUDE.md" ]; then
-    cp "$TEMP_DIR/idad/src/claude/CLAUDE.md" ./
-    echo -e "  ${GREEN}✓${NC} CLAUDE.md"
-  fi
-fi
 
 echo ""
 
@@ -295,31 +280,17 @@ echo ""
 # Create labels
 echo -e "${BLUE}▶ Creating labels...${NC}"
 
-# Type labels
-gh label create "type:issue" --repo "$REPO" --color "0366d6" --description "Standard issue" --force 2>/dev/null || true
-gh label create "type:epic" --repo "$REPO" --color "0366d6" --description "Epic with child issues" --force 2>/dev/null || true
-gh label create "type:bug" --repo "$REPO" --color "d73a4a" --description "Bug fix" --force 2>/dev/null || true
-gh label create "type:documentation" --repo "$REPO" --color "7057ff" --description "Documentation update" --force 2>/dev/null || true
-gh label create "type:question" --repo "$REPO" --color "cc317c" --description "Question or discussion" --force 2>/dev/null || true
-gh label create "type:infrastructure" --repo "$REPO" --color "fbca04" --description "Infrastructure changes" --force 2>/dev/null || true
-echo -e "  ${GREEN}✓${NC} Type labels (6)"
-
-# State labels
-gh label create "state:issue-review" --repo "$REPO" --color "bfdadc" --description "Under issue review" --force 2>/dev/null || true
-gh label create "state:ready" --repo "$REPO" --color "0e8a16" --description "Ready for planning" --force 2>/dev/null || true
-gh label create "state:planning" --repo "$REPO" --color "fbca04" --description "Being planned" --force 2>/dev/null || true
-gh label create "state:plan-review" --repo "$REPO" --color "c2e0c6" --description "Human reviewing plan" --force 2>/dev/null || true
-gh label create "state:implementing" --repo "$REPO" --color "d93f0b" --description "Being implemented" --force 2>/dev/null || true
-gh label create "state:robot-review" --repo "$REPO" --color "5319e7" --description "Under robot code review" --force 2>/dev/null || true
-gh label create "state:robot-docs" --repo "$REPO" --color "1d76db" --description "Documenter working" --force 2>/dev/null || true
-gh label create "state:human-review" --repo "$REPO" --color "e99695" --description "Ready for human review" --force 2>/dev/null || true
-echo -e "  ${GREEN}✓${NC} State labels (8)"
-
-# Control labels
-gh label create "idad:auto" --repo "$REPO" --color "c5def5" --description "Enable IDAD automation (opt-in)" --force 2>/dev/null || true
-gh label create "needs-clarification" --repo "$REPO" --color "d93f0b" --description "Needs human clarification" --force 2>/dev/null || true
-gh label create "needs-changes" --repo "$REPO" --color "d93f0b" --description "Changes requested" --force 2>/dev/null || true
-echo -e "  ${GREEN}✓${NC} Control labels (3)"
+# IDAD workflow labels (9 total)
+gh label create "idad:issue-review" --repo "$REPO" --color "c5def5" --description "Issue Review Agent analyzing" --force 2>/dev/null || true
+gh label create "idad:issue-needs-clarification" --repo "$REPO" --color "d93f0b" --description "Issue needs human clarification" --force 2>/dev/null || true
+gh label create "idad:planning" --repo "$REPO" --color "fbca04" --description "Planner Agent creating plan" --force 2>/dev/null || true
+gh label create "idad:human-plan-review" --repo "$REPO" --color "c2e0c6" --description "Human reviewing implementation plan" --force 2>/dev/null || true
+gh label create "idad:implementing" --repo "$REPO" --color "d93f0b" --description "Implementer Agent writing code" --force 2>/dev/null || true
+gh label create "idad:security-scan" --repo "$REPO" --color "5319e7" --description "Security Scanner analyzing PR" --force 2>/dev/null || true
+gh label create "idad:code-review" --repo "$REPO" --color "5319e7" --description "Reviewer Agent reviewing PR" --force 2>/dev/null || true
+gh label create "idad:documenting" --repo "$REPO" --color "1d76db" --description "Documenter Agent updating docs" --force 2>/dev/null || true
+gh label create "idad:human-pr-review" --repo "$REPO" --color "e99695" --description "Final human review before merge" --force 2>/dev/null || true
+echo -e "  ${GREEN}✓${NC} IDAD labels (9)"
 
 echo ""
 
@@ -388,7 +359,7 @@ echo "3. Install your GitHub App on this repository:"
 echo -e "   ${YELLOW}https://github.com/settings/apps${NC} → Your App → Install App → Select ${REPO}"
 echo ""
 echo "4. Create your first automated issue:"
-echo -e "   ${YELLOW}gh issue create --title 'My feature' --label 'idad:auto' --body 'Description'${NC}"
+echo -e "   ${YELLOW}gh issue create --title 'My feature' --label 'idad:issue-review' --body 'Description'${NC}"
 echo ""
 echo "5. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"

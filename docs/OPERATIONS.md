@@ -71,7 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 ```
 
 **What It Does**:
-1. Creates 17 IDAD labels
+1. Creates 9 IDAD labels
 2. Configures GitHub Actions permissions
 3. Sets up branch protection on main
 
@@ -83,7 +83,7 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 ======================================================================
 
 Step 1: Creating IDAD Labels
-✅ All 17 labels created successfully!
+✅ All 9 labels created successfully!
 
 Step 2: Configuring GitHub Actions Permissions
 ✅ Workflow permissions updated!
@@ -138,7 +138,7 @@ gh workflow run idad.yml --ref main \
 gh issue create \
   --title "Add welcome message" \
   --body "Add a simple welcome message to the app" \
-  --label "idad:auto,type:feature"
+  --label "idad:issue-review"
 ```
 
 Watch the automation work!
@@ -192,14 +192,14 @@ gh pr edit <number> --remove-label "label-name"
 ### Bulk Label Operations
 
 ```bash
-# Add idad:auto to multiple issues
+# Add idad:issue-review to multiple issues
 for issue in 123 124 125; do
-  gh issue edit $issue --add-label "idad:auto"
+  gh issue edit $issue --add-label "idad:issue-review"
 done
 
-# Remove needs-changes from all PRs
+# Remove idad:implementing from all PRs
 gh pr list --json number --jq '.[].number' | while read pr; do
-  gh pr edit $pr --remove-label "needs-changes" 2>/dev/null || true
+  gh pr edit $pr --remove-label "idad:implementing" 2>/dev/null || true
 done
 ```
 
@@ -212,9 +212,9 @@ done
 ```bash
 gh workflow run idad.yml \
   --ref main \
-  -f agent_type="<agent>" \
-  -f issue_number="<number>" \
-  -f pr_number="<number>"
+  -f agent="<agent>" \
+  -f issue="<number>" \
+  -f pr="<number>"
 ```
 
 ### Common Scenarios
@@ -222,41 +222,49 @@ gh workflow run idad.yml \
 **Re-run Issue Review**:
 ```bash
 gh workflow run idad.yml --ref main \
-  -f agent_type="issue-review" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="issue-review" \
+  -f issue="123" \
+  -f pr=""
 ```
 
 **Force Planner to Run**:
 ```bash
 gh workflow run idad.yml --ref main \
-  -f agent_type="planner" \
-  -f issue_number="123" \
-  -f pr_number=""
+  -f agent="planner" \
+  -f issue="123" \
+  -f pr=""
 ```
 
 **Retry Implementer** (with existing PR):
 ```bash
 gh workflow run idad.yml --ref main \
-  -f agent_type="implementer" \
-  -f issue_number="123" \
-  -f pr_number="456"
+  -f agent="implementer" \
+  -f issue="123" \
+  -f pr="456"
 ```
 
-**Trigger Reviewer** (skip CI):
+**Trigger Security Scanner**:
 ```bash
 gh workflow run idad.yml --ref main \
-  -f agent_type="reviewer" \
-  -f issue_number="123" \
-  -f pr_number="456"
+  -f agent="security-scanner" \
+  -f issue="" \
+  -f pr="456"
+```
+
+**Trigger Reviewer**:
+```bash
+gh workflow run idad.yml --ref main \
+  -f agent="reviewer" \
+  -f issue="123" \
+  -f pr="456"
 ```
 
 **Generate Report**:
 ```bash
 gh workflow run idad.yml --ref main \
-  -f agent_type="reporting" \
-  -f issue_number="" \
-  -f pr_number=""
+  -f agent="reporting" \
+  -f issue="" \
+  -f pr=""
 ```
 
 ### Watch Workflow Progress
@@ -292,15 +300,18 @@ gh run list --workflow=idad.yml --limit 10
 ### Check Open Work
 
 ```bash
-# All open issues with automation
-gh issue list --label "idad:auto"
+# All open issues in workflow
+gh issue list --label "idad:planning"
+gh issue list --label "idad:human-plan-review"
+gh issue list --label "idad:implementing"
 
 # All open PRs
 gh pr list
 
-# Issues by state
-gh issue list --label "state:implementing"
-gh issue list --label "state:human-review"
+# PRs by state
+gh pr list --label "idad:security-scan"
+gh pr list --label "idad:code-review"
+gh pr list --label "idad:human-pr-review"
 ```
 
 ### Check Recent Activity
@@ -321,12 +332,12 @@ gh run list --limit 10 --json conclusion,displayTitle,createdAt
 ```bash
 # Trigger reporting agent for insights
 gh workflow run idad.yml --ref main \
-  -f agent_type="reporting" \
-  -f issue_number="" \
-  -f pr_number=""
+  -f agent="reporting" \
+  -f issue="" \
+  -f pr=""
 
-# View last report
-gh issue list --label "type:documentation" --limit 1
+# View recent reports
+gh issue list --state closed --limit 10 | grep "Report"
 ```
 
 ---
@@ -364,14 +375,14 @@ gh issue list --label "type:documentation" --limit 1
 1. **Generate Monthly Report**
    ```bash
    REPORT_TYPE=monthly gh workflow run idad.yml --ref main \
-     -f agent_type="reporting" \
-     -f issue_number="" \
-     -f pr_number=""
+     -f agent="reporting" \
+     -f issue="" \
+     -f pr=""
    ```
 
 2. **Review IDAD Improvements**
    ```bash
-   gh pr list --label "type:infrastructure"
+   gh issue list --label "idad:issue-review" | grep "Improve IDAD"
    ```
 
 3. **Update Dependencies** (if any)
@@ -452,11 +463,13 @@ If everything breaks:
 
 1. **Pause Automation**
    ```bash
-   # Remove idad:auto from all issues
-   gh issue list --label "idad:auto" --json number --jq '.[].number' | \
-     while read issue; do
-       gh issue edit $issue --remove-label "idad:auto"
-     done
+   # Remove idad labels from all issues
+   for label in idad:issue-review idad:planning idad:implementing; do
+     gh issue list --label "$label" --json number --jq '.[].number' | \
+       while read issue; do
+         gh issue edit $issue --remove-label "$label"
+       done
+   done
    ```
 
 2. **Cancel Running Workflows**
@@ -484,7 +497,7 @@ If everything breaks:
    ```bash
    gh issue create --title "[TEST] Simple test" \
      --body "Test issue" \
-     --label "idad:auto,type:feature"
+     --label "idad:issue-review"
    ```
 
 ---
@@ -575,8 +588,9 @@ done
 ## Monitoring Best Practices
 
 ### Daily
-- Check for `needs-clarification` issues
-- Review `state:human-review` PRs
+- Check for `idad:issue-needs-clarification` issues
+- Review `idad:human-plan-review` issues
+- Review `idad:human-pr-review` PRs
 - Merge approved PRs
 
 ### Weekly  
@@ -599,7 +613,7 @@ done
 - Use repository secrets (not environment secrets)
 
 ### Code Review
-- Always review `state:human-review` PRs
+- Always review `idad:human-pr-review` PRs
 - Don't blindly merge automated work
 - Check for security issues
 
@@ -609,9 +623,9 @@ done
 - Use `--admin` only for testing
 
 ### Sensitive Operations
-- Don't use `idad:auto` for security changes
+- Don't use `idad:issue-review` for security changes
 - Manual review for infrastructure changes
-- IDAD improvements always require human review
+- IDAD improvements always require human plan and PR review
 
 ---
 
@@ -624,10 +638,10 @@ done
 curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
 
 # Create issue
-gh issue create --title "..." --body "..." --label "idad:auto,type:feature"
+gh issue create --title "..." --body "..." --label "idad:issue-review"
 
 # Trigger agent
-gh workflow run idad.yml --ref main -f agent_type="..." -f issue_number="..." -f pr_number="..."
+gh workflow run idad.yml --ref main -f agent="..." -f issue="..." -f pr="..."
 
 # View issue
 gh issue view <number>
@@ -642,7 +656,7 @@ gh run list --limit 10
 gh pr merge <number> --squash
 
 # Generate report
-gh workflow run idad.yml --ref main -f agent_type="reporting" -f issue_number="" -f pr_number=""
+gh workflow run idad.yml --ref main -f agent="reporting" -f issue="" -f pr=""
 ```
 
 ### Emergency Commands
@@ -652,7 +666,9 @@ gh workflow run idad.yml --ref main -f agent_type="reporting" -f issue_number=""
 gh run list --status in_progress --json databaseId --jq '.[].databaseId' | xargs -I {} gh run cancel {}
 
 # Remove automation from all issues
-gh issue list --label "idad:auto" --json number --jq '.[].number' | xargs -I {} gh issue edit {} --remove-label "idad:auto"
+for label in idad:issue-review idad:planning idad:implementing; do
+  gh issue list --label "$label" --json number --jq '.[].number' | xargs -I {} gh issue edit {} --remove-label "$label"
+done
 
 # Reset repository
 curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash
@@ -670,5 +686,5 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 
 ---
 
-**Last Updated**: 2025-12-09  
-**Phase**: 10 - Full Workflow Integration
+**Last Updated**: 2025-12-12
+**Phase**: 11 - Unified Label System

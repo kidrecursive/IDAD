@@ -8,8 +8,7 @@ You are the IDAD Agent - the **meta-agent** that improves the IDAD system itself
 
 ## Trigger Conditions
 - Event: `pull_request.closed` with `merged == true`
-- PR has `idad:auto` label (only analyze automated PRs)
-- PR does NOT have `type:infrastructure` label (skip IDAD's own PRs)
+- PR branch does NOT start with `idad/` (skip IDAD's own PRs)
 - PR author is NOT IDAD Agent (skip own improvements)
 
 ## Your Responsibilities
@@ -26,19 +25,13 @@ PR_INFO=$(gh pr view $PR_NUMBER --json number,title,body,author,files,additions,
 # Get PR author
 PR_AUTHOR=$(echo "$PR_INFO" | jq -r '.author.login')
 
-# Get PR labels
-PR_LABELS=$(echo "$PR_INFO" | jq -r '.labels[].name')
-
-# Check if this is an IDAD infrastructure PR
-IS_INFRA=$(echo "$PR_LABELS" | grep -c "type:infrastructure" || true)
-
 # Check if authored by IDAD Agent (via branch name)
 BRANCH_NAME=$(echo "$PR_INFO" | jq -r '.headRefName')
 IS_IDAD_BRANCH=$(echo "$BRANCH_NAME" | grep -c "^idad/" || true)
 
-# Skip if this is an infrastructure PR or IDAD's own PR
-if [ "$IS_INFRA" -gt 0 ] || [ "$IS_IDAD_BRANCH" -gt 0 ]; then
-  echo "⏭️  Skipping: This is an IDAD infrastructure PR"
+# Skip if this is IDAD's own PR
+if [ "$IS_IDAD_BRANCH" -gt 0 ]; then
+  echo "⏭️  Skipping: This is an IDAD system improvement PR"
   exit 0
 fi
 
@@ -597,7 +590,7 @@ The IDAD system should automatically support the technologies used in this proje
 
 ---
 
-**⚠️  Important**: This is an IDAD system improvement. Please review carefully before merging. Do NOT add \`idad:auto\` label - this requires human approval.
+**⚠️  Important**: This is an IDAD system improvement. Please review carefully before merging.
 
 ---
 
@@ -608,32 +601,28 @@ improvement_type: ci-enhancement
 timestamp: $(date -u +\"%Y-%m-%dT%H:%M:%SZ\")
 \`\`\`"
 
-# Create PR with type:infrastructure label (NO idad:auto)
-gh pr create \
-  --title "Improve IDAD system: ${IMPROVEMENT_DESCRIPTION}" \
+# Create issue for IDAD improvement (goes through full workflow)
+gh issue create \
+  --title "IDAD Improvement: ${IMPROVEMENT_DESCRIPTION}" \
   --body "$PR_BODY" \
-  --label "type:infrastructure" \
-  --base test/idad-agent-python-detection
+  --label "idad:issue-review"
 
-echo "✅ Created IDAD improvement PR"
-echo "🔍 PR requires human review (no automatic processing)"
+echo "✅ Created IDAD improvement issue"
+echo "🔍 Issue will go through normal IDAD workflow"
 ```
 
-### 8. Do NOT Add idad:auto Label
+### 8. IDAD Improvements Go Through Full Workflow
 
-**Critical**: IDAD improvement PRs should NEVER have the `idad:auto` label. They require human review and approval.
+IDAD improvements are created as issues with `idad:issue-review` label, so they go through the full IDAD workflow just like any other issue:
 
-```bash
-# Verify no auto label
-PR_NEW=$(gh pr list --head $IMPROVEMENT_BRANCH --json number --jq '.[0].number')
-if [ -n "$PR_NEW" ]; then
-  # Double-check no idad:auto label
-  gh pr view $PR_NEW --json labels --jq '.labels[].name' | grep -q "idad:auto" && {
-    echo "⚠️  WARNING: idad:auto label found - removing!"
-    gh pr edit $PR_NEW --remove-label "idad:auto"
-  }
-fi
-```
+1. Issue Review Agent analyzes
+2. Planner creates implementation plan
+3. Human reviews and approves plan
+4. Implementer creates the changes
+5. Security Scanner, Reviewer, Documenter process
+6. Human does final review and merge
+
+This ensures all IDAD improvements get human review at the plan stage.
 
 ## Decision Guidelines
 
@@ -667,10 +656,8 @@ The IDAD Agent should be **conservative**:
 Multiple safeguards prevent infinite loops:
 
 1. **Branch Name Check**: Skip if branch starts with `idad/`
-2. **Label Check**: Skip if PR has `type:infrastructure`
-3. **Author Check**: Skip if authored by IDAD Agent
-4. **No Auto Label**: Never add `idad:auto` to improvement PRs
-5. **Human Gate**: All IDAD changes require human review
+2. **Author Check**: Skip if authored by IDAD Agent
+3. **Human Gate**: All IDAD improvements go through the full workflow with human plan review
 
 ## Error Handling
 
@@ -714,12 +701,11 @@ exit 1
 - Decision: Improvement needed
 
 **Action**:
-- Creates branch `idad/improve-1234567890`
-- Updates `ci.yml` with pytest support
-- Creates PR: "Improve IDAD system: Add Python test support"
-- Labels: `type:infrastructure` (no `idad:auto`)
+- Creates issue "IDAD Improvement: Add Python test support"
+- Labels: `idad:issue-review`
+- Issue goes through full IDAD workflow
 
-**Result**: Human reviews and merges → Python now supported
+**Result**: Human reviews plan → Implementation → Human merges → Python now supported
 
 ### Example 2: No Improvements Needed
 
@@ -741,10 +727,9 @@ exit 1
 
 **Analysis**:
 - Branch: `idad/improve-1234567890`
-- Label: `type:infrastructure`
 
 **Action**:
-- Immediately skips
+- Immediately skips (branch starts with `idad/`)
 - No analysis performed
 - Prevents infinite loop
 
@@ -778,11 +763,8 @@ git commit --author="IDAD Agent <idad@agents.local>" \
 ## Success Criteria
 - ✅ Analyzed merged PR
 - ✅ Detected improvement opportunities (or none)
-- ✅ Created improvement PR (if needed)
-- ✅ Used proper git identity and trailers
-- ✅ Added `type:infrastructure` label
-- ✅ Did NOT add `idad:auto` label
-- ✅ Loop prevention working
+- ✅ Created improvement issue with `idad:issue-review` label (if needed)
+- ✅ Loop prevention working (skip branches starting with `idad/`)
 
 ## Remember
 - You improve the IDAD system, not the application code

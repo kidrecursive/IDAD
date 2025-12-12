@@ -23,48 +23,48 @@ IDAD is a fully automated, self-improving GitHub-based agentic coding system whe
 - **Pull Requests** are implementation and review artifacts
 - **Agents collaborate** via labels, comments, and workflows
 - **System self-improves** through the IDAD Agent
-- **Automation is opt-in** via the `idad:auto` label
+- **Automation is opt-in** via the `idad:issue-review` label
+- **Only ONE `idad:*` label** per issue/PR at a time (encapsulates workflow state)
 
 ### Architecture
 
 ```
-┌─────────────┐
-│   GitHub    │
-│   Issue     │◄─── User creates issue
-│ + idad:auto │
-└──────┬──────┘
-       │
-       ▼
+┌──────────────────────┐
+│      GitHub Issue    │◄─── User creates issue
+│ + idad:issue-review  │     (opt-in to automation)
+└──────────┬───────────┘
+           │
+           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              IDAD Automation Pipeline                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  1. Issue Review Agent ──► Refines & Classifies              │
-│                             Adds type label                   │
-│                             Sets state:ready                  │
+│  1. Issue Review Agent ──► Analyzes & Validates              │
+│                             → idad:planning (ready)          │
+│                             → idad:issue-needs-clarification │
 │                                                               │
 │  2. Planner Agent ────────► Creates Implementation Plan      │
 │                             Adds to issue body                │
-│                             Sets state:plan-review            │
+│                             → idad:human-plan-review         │
 │                                                               │
 │  3. 👤 Human Plan Review ─► Reviews plan, provides feedback  │
 │                             Approves or requests changes      │
 │                             (Comment triggers Planner)        │
 │                                                               │
 │  4. Implementer Agent ───► Writes Code & Tests               │
-│                             Creates PR                        │
-│                             Pushes commits                    │
+│                             Creates PR with idad:security-scan│
 │                                                               │
-│  5. CI Workflow ──────────► Runs Tests                       │
-│                             Validates Build                   │
+│  5. Security Scanner ────► Checks for vulnerabilities        │
+│                             → idad:code-review (pass)        │
+│                             → idad:implementing (block)       │
 │                                                               │
 │  6. Reviewer Agent ───────► Code Review                      │
-│                             Approves or Requests Changes      │
-│                             Sets state:robot-docs             │
+│                             → idad:documenting (approved)     │
+│                             → idad:implementing (changes)     │
 │                                                               │
 │  7. Documenter Agent ─────► Updates Documentation            │
 │                             Finalizes PR                      │
-│                             Sets state:human-review           │
+│                             → idad:human-pr-review           │
 │                                                               │
 └───────────────────────────┬─────────────────────────────────┘
                             │
@@ -90,7 +90,7 @@ IDAD is a fully automated, self-improving GitHub-based agentic coding system whe
 **User Action**: Create an issue with clear requirements
 
 **Required**:
-- Add `idad:auto` label (opt-in to automation)
+- Add `idad:issue-review` label (opt-in to automation)
 - Provide clear description
 - Specify acceptance criteria
 
@@ -112,7 +112,7 @@ Add user authentication feature
 
 **What Happens**:
 - Issue created in GitHub
-- Dispatcher workflow detects `idad:auto` label
+- Workflow detects `idad:issue-review` label
 - Triggers Issue Review Agent
 
 **Timeline**: Instant
@@ -121,25 +121,23 @@ Add user authentication feature
 
 ### Step 2: Issue Review Agent
 
-**Purpose**: Refine and classify the issue
+**Purpose**: Analyze and validate the issue
 
 **Actions**:
 - Reads issue description
-- May ask clarifying questions (adds `needs-clarification`)
-- Classifies issue type (adds `type:feature`, `type:bug`, etc.)
-- Ensures requirements are clear
-- Posts refined issue content
-- Sets `state:ready`
+- May ask clarifying questions (sets `idad:issue-needs-clarification`)
+- Ensures requirements are clear and actionable
+- Posts analysis comment
+- Sets `idad:planning` when ready
 
 **Timeline**: 30-60 seconds
 
 **You'll See**:
-- Agent comment with clarifications or confirmations
-- `type:*` label added
-- `state:ready` label added
+- Agent comment with analysis or clarifying questions
+- Label changes to `idad:planning` (ready) or `idad:issue-needs-clarification` (unclear)
 - Machine-readable `agentlog` block
 
-**Next Step**: Automatically triggers Planner Agent
+**Next Step**: Automatically triggers Planner Agent (or waits for human clarification)
 
 ---
 
@@ -153,7 +151,7 @@ Add user authentication feature
 - Determines appropriate branch name
 - Creates feature branch
 - Updates issue body with plan
-- Sets `state:plan-review`
+- Sets `idad:human-plan-review`
 - **Waits for human approval**
 
 **Timeline**: 1-2 minutes
@@ -162,7 +160,7 @@ Add user authentication feature
 - Implementation plan added to issue body
 - Task breakdown with subtasks
 - Branch name specified
-- `state:plan-review` label
+- `idad:human-plan-review` label
 - Comment asking for your review
 
 **Plan Format**:
@@ -214,8 +212,8 @@ gh issue comment 123 --body "Can we also add error handling for edge cases?"
 **What Happens**:
 - Your comment triggers the Planner agent again
 - Planner reads your feedback and either:
-  - Updates the plan (if changes requested) → stays in `state:plan-review`
-  - Triggers Implementer (if approved) → changes to `state:implementing`
+  - Updates the plan (if changes requested) → goes to `idad:planning`
+  - Triggers Implementer (if approved) → changes to `idad:implementing`
 
 **Timeline**: Depends on you!
 
@@ -257,33 +255,33 @@ Workflow-Run: 20123456789
 - Code committed to feature branch
 - PR description with implementation summary
 - Tests included
-- `idad:auto` label on PR
+- `idad:security-scan` label on PR
 
-**Next Step**: PR creation triggers CI workflow
+**Next Step**: PR creation triggers Security Scanner
 
 ---
 
-### Step 5: CI Workflow
+### Step 5: Security Scanner
 
-**Purpose**: Run tests and validate build
+**Purpose**: Check for security vulnerabilities
 
 **Actions**:
-- Runs on PR open/update
-- Executes test suite
-- Reports results in PR comments
-- On success: Triggers Reviewer Agent
-- On failure: Triggers Implementer Agent (to fix)
+- Analyzes PR changes for security issues
+- Checks for hardcoded secrets, SQL injection, XSS, etc.
+- Reviews dependencies for known vulnerabilities
+- Either:
+  - **Passes**: Sets `idad:code-review`, triggers Reviewer Agent
+  - **Blocks**: Sets `idad:implementing`, Implementer fixes issues
 
-**Timeline**: < 1 minute (depends on tests)
+**Timeline**: 30-60 seconds
 
 **You'll See**:
-- CI status check on PR
-- Comment with test results
-- Green check (pass) or red X (fail)
+- Security scan results in PR comment
+- Label changes based on scan results
 
-**Next Step**: 
+**Next Step**:
 - If pass: Automatically triggers Reviewer Agent
-- If fail: Re-triggers Implementer Agent
+- If blocked: Re-triggers Implementer Agent
 
 ---
 
@@ -296,10 +294,10 @@ Workflow-Run: 20123456789
 - Checks code quality
 - Validates requirements coverage
 - Reviews test adequacy
-- Checks for security issues
+- Verifies error handling
 - Either:
-  - **Approves**: Posts approval, sets `state:robot-docs`
-  - **Requests Changes**: Posts detailed feedback, adds `needs-changes`
+  - **Approves**: Posts approval, sets `idad:documenting`
+  - **Requests Changes**: Posts detailed feedback, sets `idad:implementing`
 
 **Timeline**: 30-90 seconds
 
@@ -307,7 +305,7 @@ Workflow-Run: 20123456789
 - Code quality and structure
 - Requirements coverage
 - Test adequacy
-- Security and error handling
+- Error handling
 - Documentation needs
 - Best practices
 
@@ -320,8 +318,8 @@ Author: Reviewer Agent <reviewer@agents.local>
 - PR review posted
 - Detailed feedback in review comments
 - Either:
-  - ✅ Approval + `state:robot-docs` label
-  - 🔄 Changes requested + `needs-changes` label
+  - ✅ Approval + `idad:documenting` label
+  - 🔄 Changes requested + `idad:implementing` label
 
 **Next Step**:
 - If approved: Automatically triggers Documenter Agent
@@ -340,7 +338,7 @@ Author: Reviewer Agent <reviewer@agents.local>
 - Adds usage examples
 - Cleans up temporary files
 - Updates PR description
-- Sets `state:human-review`
+- Sets `idad:human-pr-review`
 - **Does NOT trigger another agent** (end of automation)
 
 **Timeline**: 30-90 seconds
@@ -354,7 +352,7 @@ Author: Documenter Agent <documenter@agents.local>
 - Documentation commit pushed to PR
 - README.md updated
 - PR description finalized
-- `state:human-review` label
+- `idad:human-pr-review` label
 - Summary comment from agent
 
 **Next Step**: **Human review and merge** (automation complete!)
@@ -393,132 +391,147 @@ Author: Documenter Agent <documenter@agents.local>
 - Detects new technologies/frameworks
 - Checks if IDAD system needs updates
 - If improvements needed:
-  - Creates improvement PR
-  - Labels: `type:infrastructure` (NOT `idad:auto`)
-  - Requires human review
+  - Creates improvement **issue** with `idad:issue-review`
+  - Goes through full IDAD workflow
+  - Requires human review at each gate
 
 **Timeline**: 1-2 minutes
 
 **You'll See** (if improvements proposed):
-- New PR with IDAD improvements
-- CI workflow updates
-- Agent definition updates
-- Requires your review and approval
+- New issue with IDAD improvement proposal
+- Issue goes through normal workflow
+- Requires your plan approval and PR review
 
 **Loop Prevention**:
 - Skips own PRs (branch starts with `idad/`)
-- Skips infrastructure PRs (`type:infrastructure`)
-- Never adds `idad:auto` to improvement PRs
+- Uses branch naming to prevent infinite loops
 
 ---
 
 ## Agent Responsibilities
 
 ### Issue Review Agent
-- **Trigger**: Issue created with `idad:auto`
+- **Trigger**: Issue labeled `idad:issue-review`
 - **Input**: Raw issue description
-- **Output**: Refined issue, type label, state:ready
+- **Output**: Analysis, `idad:planning` (ready) or `idad:issue-needs-clarification` (unclear)
 - **Duration**: 30-60s
 
-### Planner Agent  
-- **Trigger**: Issue marked `state:ready` OR comment on `state:plan-review` issue
-- **Input**: Refined issue requirements OR human feedback on plan
-- **Output**: Implementation plan, state:plan-review (or state:implementing after approval)
+### Planner Agent
+- **Trigger**: Issue labeled `idad:planning` OR comment on `idad:human-plan-review` issue
+- **Input**: Issue requirements OR human feedback on plan
+- **Output**: Implementation plan, `idad:human-plan-review` (or `idad:implementing` after approval)
 - **Duration**: 1-2 minutes
 
 ### Implementer Agent
-- **Trigger**: Issue marked `state:implementing`
+- **Trigger**: Issue labeled `idad:implementing`
 - **Input**: Implementation plan
-- **Output**: PR with code and tests
+- **Output**: PR with code and tests, `idad:security-scan` on PR
 - **Duration**: 1-3 minutes
 
-### Reviewer Agent
-- **Trigger**: CI passes on PR
+### Security Scanner
+- **Trigger**: PR labeled `idad:security-scan`
 - **Input**: PR code changes
-- **Output**: Approval or change requests
+- **Output**: `idad:code-review` (pass) or `idad:implementing` (block)
+- **Duration**: 30-60s
+
+### Reviewer Agent
+- **Trigger**: PR labeled `idad:code-review`
+- **Input**: PR code changes
+- **Output**: `idad:documenting` (approved) or `idad:implementing` (changes)
 - **Duration**: 30-90s
 
 ### Documenter Agent
-- **Trigger**: PR approved (state:robot-docs)
+- **Trigger**: PR labeled `idad:documenting`
 - **Input**: PR changes
-- **Output**: Updated docs, state:human-review
+- **Output**: Updated docs, `idad:human-pr-review`
 - **Duration**: 30-90s
 
 ### IDAD Agent
 - **Trigger**: PR merged to main
 - **Input**: Merged changes
-- **Output**: Improvement PR (if needed)
+- **Output**: Improvement issue with `idad:issue-review` (if needed)
 - **Duration**: 1-2 minutes
 
 ---
 
 ## Label System
 
-### Type Labels (Classification)
-- `type:feature` - New feature
-- `type:bug` - Bug fix
-- `type:documentation` - Docs only
-- `type:epic` - Large feature with sub-issues
-- `type:question` - Question or discussion
-- `type:infrastructure` - IDAD system changes
+**Only ONE `idad:*` label per issue/PR at a time.** The label encapsulates the current workflow state.
 
-### State Labels (Workflow Progress)
-- `state:issue-review` - Under issue review
-- `state:ready` - Ready for planning
-- `state:planning` - Being planned
-- `state:plan-review` - **Waiting for human plan approval**
-- `state:implementing` - Being implemented
-- `state:robot-review` - Under code review
-- `state:robot-docs` - Documentation in progress
-- `state:human-review` - Ready for human review
+### IDAD Labels (9 Total)
 
-### Control Labels
-- `idad:auto` - **Enable automation** (opt-in required)
-- `needs-clarification` - Human input needed (pauses automation)
-- `needs-changes` - Changes requested by reviewer
+| Label | Purpose | Set By |
+|-------|---------|--------|
+| `idad:issue-review` | Issue Review Agent analyzing | User (opt-in) |
+| `idad:issue-needs-clarification` | Issue needs human input | Issue Review Agent |
+| `idad:planning` | Planner creating plan | Issue Review Agent |
+| `idad:human-plan-review` | Human reviewing plan | Planner Agent |
+| `idad:implementing` | Implementer writing code | Planner / Reviewer / Security / Human |
+| `idad:security-scan` | Security Scanner analyzing | Implementer Agent |
+| `idad:code-review` | Reviewer Agent reviewing | Security Scanner |
+| `idad:documenting` | Documenter updating docs | Reviewer Agent |
+| `idad:human-pr-review` | Final human review | Documenter Agent |
 
 ### Label State Transitions
 
 ```
 [Issue Created]
       │
-      │ (idad:auto added)
+      │ (user adds idad:issue-review)
       ▼
- state:issue-review
+idad:issue-review
       │
       │ (Issue Review Agent)
+      ├─ Ready ────────────► idad:planning
+      │
+      └─ Unclear ──────────► idad:issue-needs-clarification
+                                    │
+                                    │ (human clarifies, re-triggers)
+                                    └──► idad:issue-review
+      │
       ▼
-  state:ready
+idad:planning
       │
       │ (Planner Agent creates plan)
       ▼
- state:plan-review ◄───────────────────┐
-      │                                 │
-      │ (Human reviews plan)            │ (changes requested)
-      │                                 │
-      ├─ Approved ─────────────────────►│
-      │                                 │
-      └─ Changes Requested ─────────────┘
+idad:human-plan-review ◄──────────────┐
+      │                                │
+      │ (Human reviews plan)           │ (changes requested)
+      │                                │
+      ├─ Approved ─────────────────────┤
+      │                                │
+      └─ Changes Requested ────────────┘
       │
       │ (Planner triggers Implementer)
       ▼
-state:implementing
-      │
-      │ (Implementer Agent creates PR)
-      ▼
-state:robot-review
-      │
-      │ (Reviewer Agent)
-      ├─ Approved ──────► state:robot-docs
-      │                         │
-      │                         │ (Documenter Agent)
-      │                         ▼
-      │                   state:human-review ──► [Human Merge]
-      │
-      └─ Changes Requested ──► needs-changes
-                                    │
-                                    │ (back to Implementer)
-                                    └─► state:implementing
+idad:implementing ◄────────────────────┐
+      │                                 │
+      │ (Implementer creates PR)        │
+      ▼                                 │
+idad:security-scan                      │
+      │                                 │
+      │ (Security Scanner)              │
+      ├─ Pass ───► idad:code-review     │
+      │                  │              │
+      └─ Block ──────────┼──────────────┘
+                         │
+                         │ (Reviewer Agent)
+                         ├─ Approved ──► idad:documenting
+                         │                     │
+                         └─ Changes ───────────┤
+                                               │
+                                ▼              │
+                         idad:human-pr-review  │
+                               │               │
+                               │ (Human)       │
+                               └─ Comment ─────┘
+                               │
+                               │ (Approved)
+                               ▼
+                         [Human Merge]
+                               │
+                               ▼
+                         [IDAD Agent]
 ```
 
 ---
@@ -553,10 +566,11 @@ state:robot-review
 
 ### Pattern: Simple Feature Addition
 1. Create issue with feature description
-2. Add `idad:auto` label
-3. Wait ~6-10 minutes
-4. Review and merge PR
-5. Done!
+2. Add `idad:issue-review` label
+3. Wait for plan, approve it
+4. Wait ~6-10 minutes for implementation
+5. Review and merge PR
+6. Done!
 
 **Best for**: Small, well-defined features
 
@@ -565,8 +579,8 @@ state:robot-review
 ### Pattern: Bug Fix
 1. Create issue with bug description
 2. Include reproduction steps
-3. Add `idad:auto` and `type:bug` labels
-4. Agents will fix, test, and document
+3. Add `idad:issue-review` label
+4. Agents will analyze, plan, fix, test, and document
 5. Review and merge
 
 **Best for**: Reproducible bugs
@@ -574,9 +588,9 @@ state:robot-review
 ---
 
 ### Pattern: Epic (Large Feature)
-1. Create parent issue with `type:epic`
-2. Add `idad:auto` label
-3. Planner creates sub-issues
+1. Create parent issue describing the epic
+2. Add `idad:issue-review` label
+3. Planner creates sub-issues with `idad:planning` (well-defined)
 4. Each sub-issue follows normal workflow
 5. All sub-PRs merge independently
 
@@ -587,31 +601,42 @@ state:robot-review
 ### Pattern: Iterative Refinement
 1. Issue created (vague requirements)
 2. Issue Review Agent asks clarifying questions
-3. Issue gets `needs-clarification` label
+3. Issue gets `idad:issue-needs-clarification` label
 4. Human answers questions in comments
-5. Remove `needs-clarification` when ready
-6. Workflow continues
+5. Issue Review Agent re-analyzes
+6. Workflow continues with `idad:planning`
 
 **Best for**: Complex requirements needing discussion
 
 ---
 
 ### Pattern: Change Requests
-1. Reviewer requests changes
-2. PR gets `needs-changes` label
+1. Reviewer or Security Scanner requests changes
+2. PR gets `idad:implementing` label
 3. Implementer automatically re-triggered
 4. New commits address feedback
-5. Reviewer re-reviews
+5. Security Scanner and Reviewer re-review
 6. Eventually approved
 
 **Best for**: Code that needs iteration
 
 ---
 
+### Pattern: Human PR Feedback
+1. PR reaches `idad:human-pr-review` stage
+2. Human reviews and comments with changes
+3. Comment triggers Implementer Agent
+4. PR cycles back through Security Scanner, Reviewer, Documenter
+5. Returns to `idad:human-pr-review` for final approval
+
+**Best for**: PRs needing final human-directed refinements
+
+---
+
 ### Pattern: Manual Intervention
-1. Any time: Remove `idad:auto` to pause
+1. Any time: Remove current `idad:*` label to pause
 2. Make manual changes to issue/PR
-3. Add `idad:auto` back to resume
+3. Add appropriate `idad:*` label back to resume
 4. Or close issue to stop completely
 
 **Best for**: Taking manual control when needed
@@ -620,7 +645,7 @@ state:robot-review
 
 ### Pattern: Opt-Out
 1. Create issue normally
-2. **Don't add `idad:auto` label**
+2. **Don't add any `idad:*` label**
 3. Work on it manually
 4. No automation occurs
 
@@ -637,26 +662,26 @@ state:robot-review
 - Provide acceptance criteria
 - Include examples where helpful
 - Specify constraints or limitations
-- Add `idad:auto` when ready for automation
+- Add `idad:issue-review` when ready for automation
 
 ❌ **Don't**:
 - Be vague or ambiguous
 - Skip acceptance criteria
 - Assume implementation details
-- Add `idad:auto` to sensitive/experimental work
+- Add `idad:issue-review` to sensitive/experimental work
 
 ### Monitoring Progress
 
-**Check Issue**: Labels show current state
+**Check Issue**: The `idad:*` label shows current state
 **Check Workflow Runs**: See agent execution in Actions tab
 **Check Comments**: Agents post detailed logs
 **Check PR**: See code as it's developed
 
 ### When to Intervene
 
-**Pause Automation**: Add `needs-clarification` label
-**Stop Automation**: Remove `idad:auto` label
-**Manual Changes**: Pause automation, make changes, resume
+**Pause Automation**: Remove the current `idad:*` label
+**Stop Automation**: Remove all `idad:*` labels
+**Manual Changes**: Remove label, make changes, add appropriate label back
 **Close Issue**: Stops all automation
 
 ### Performance Tips
@@ -672,7 +697,7 @@ state:robot-review
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging guide.
 
 **Quick Checks**:
-- Issue has `idad:auto` label?
+- Issue has an `idad:*` label?
 - Workflows running in Actions tab?
 - Any error comments from agents?
 - Check workflow logs for errors
@@ -687,5 +712,5 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging guide.
 
 ---
 
-**Last Updated**: 2025-12-09  
-**Phase**: 10 - Full Workflow Integration
+**Last Updated**: 2025-12-12
+**Phase**: 11 - Unified Label System

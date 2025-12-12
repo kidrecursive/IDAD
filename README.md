@@ -11,9 +11,9 @@ Create issues, get PRs automatically. AI agents handle the entire development wo
 ## How It Works
 
 ```
-You create an issue with idad:auto label
+You create an issue with idad:issue-review label
          ↓
-🤖 Issue Review Agent → refines and classifies
+🤖 Issue Review Agent → analyzes and validates
          ↓
 🤖 Planner Agent → creates implementation plan
          ↓
@@ -23,8 +23,6 @@ You create an issue with idad:auto label
          ↓
 🔒 Security Scanner → checks for vulnerabilities
          ↓
-✅ CI → runs tests
-         ↓
 🤖 Reviewer Agent → performs code review
          ↓
 🤖 Documenter Agent → updates documentation
@@ -33,6 +31,8 @@ You create an issue with idad:auto label
          ↓
 🤖 IDAD Agent → analyzes for system improvements
 ```
+
+**Only ONE `idad:*` label per issue/PR at a time** - the label encapsulates the workflow state.
 
 ---
 
@@ -84,7 +84,7 @@ cursor-agent \
 **Claude Code:**
 ```bash
 claude \
-  --system-prompt "$(cat .claude/rules/system.md)" \
+  --system-prompt "$(cat .claude/rules/system.mdc)" \
   -p "Run the IDAD repository tests. $(cat .claude/agents/repository-testing.md)"
 ```
 
@@ -99,7 +99,7 @@ This verifies:
 
 ```bash
 # Create your first automated issue
-gh issue create --title "Add hello world feature" --label "idad:auto" --body "Create a simple hello world function with tests."
+gh issue create --title "Add hello world feature" --label "idad:issue-review" --body "Create a simple hello world function with tests."
 
 # Watch the agents work
 gh run list --workflow=idad.yml --limit 5
@@ -189,17 +189,19 @@ gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
 
 ## Labels
 
-Add `idad:auto` to any issue to enable automation.
+Add `idad:issue-review` to any issue to enable automation. **Only ONE `idad:*` label at a time.**
 
 | Label | Purpose |
 |-------|---------|
-| `idad:auto` | **Enable automation** (required) |
-| `type:issue` | Standard feature |
-| `type:bug` | Bug fix |
-| `type:epic` | Large feature (creates sub-issues) |
-| `state:plan-review` | **Waiting for plan approval** |
-| `needs-clarification` | Waiting for human input |
-| `needs-changes` | Code changes requested |
+| `idad:issue-review` | **Start automation** (opt-in) |
+| `idad:issue-needs-clarification` | Issue needs human input |
+| `idad:planning` | Planner creating plan |
+| `idad:human-plan-review` | **Waiting for plan approval** |
+| `idad:implementing` | Implementer writing code |
+| `idad:security-scan` | Security Scanner analyzing |
+| `idad:code-review` | Reviewer analyzing |
+| `idad:documenting` | Documenter updating docs |
+| `idad:human-pr-review` | **Final human review** |
 
 ---
 
@@ -207,13 +209,13 @@ Add `idad:auto` to any issue to enable automation.
 
 ```bash
 # Trigger specific agent
-gh workflow run idad.yml -f agent="planner" -f issue="123"
+gh workflow run idad.yml -f agent="planner" -f issue="123" -f pr=""
 
 # Re-run implementer on existing PR
 gh workflow run idad.yml -f agent="implementer" -f issue="123" -f pr="456"
 
 # Trigger security scan
-gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
+gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
 ```
 
 ---
@@ -257,7 +259,7 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 │   ├── reporting.md
 │   └── repository-testing.md   # Post-install verification
 └── rules/
-    └── system.md
+    └── system.mdc              # Same format for both CLIs
 
 .github/workflows/
 └── idad.yml                    # CI created by IDAD agent when needed
@@ -291,47 +293,46 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 ```mermaid
 flowchart TD
     subgraph Issue["📋 Issue Phase"]
-        A[/"👤 Create Issue<br/>+ idad:auto label"/]
-        B["🤖 Issue Review Agent<br/>Refines & classifies"]
+        A[/"👤 Create Issue<br/>+ idad:issue-review"/]
+        B["🤖 Issue Review Agent<br/>Analyzes & validates"]
     end
 
     subgraph Planning["🗺️ Planning Phase"]
         C["🤖 Planner Agent<br/>Creates implementation plan"]
-        D{"👤 Review Plan"}
+        D{"👤 Review Plan<br/>idad:human-plan-review"}
         E["🤖 Planner Agent<br/>Updates plan"]
     end
 
     subgraph Implementation["💻 Implementation Phase"]
         F["🤖 Implementer Agent<br/>Writes code & tests"]
-        G["🔒 Security Scanner<br/>Checks vulnerabilities"]
-        H["✅ CI<br/>Runs tests"]
+        G["🔒 Security Scanner<br/>idad:security-scan"]
     end
 
     subgraph Review["🔍 Review Phase"]
-        I["🤖 Reviewer Agent<br/>Code review"]
-        J["🤖 Documenter Agent<br/>Updates docs"]
+        I["🤖 Reviewer Agent<br/>idad:code-review"]
+        J["🤖 Documenter Agent<br/>idad:documenting"]
     end
 
     subgraph Completion["✨ Completion"]
-        K{"👤 Review PR"}
+        K{"👤 Review PR<br/>idad:human-pr-review"}
         L["🎉 Merge PR"]
-        M["🤖 IDAD Agent<br/>System improvements"]
+        M["🤖 IDAD Agent<br/>Creates improvement issue"]
     end
 
     A --> B
-    B --> C
+    B -->|"idad:planning"| C
     C --> D
     D -->|"Changes needed"| E
     E --> D
-    D -->|"Approved ✓"| F
+    D -->|"Approved → idad:implementing"| F
     F --> G
-    G --> H
-    H --> I
+    G -->|"Pass"| I
+    G -->|"Block"| F
     I -->|"Changes needed"| F
-    I -->|"Approved ✓"| J
+    I -->|"Approved"| J
     J --> K
-    K -->|"Changes needed"| F
-    K -->|"Approved ✓"| L
+    K -->|"Comments"| F
+    K -->|"Approved"| L
     L --> M
 
     style A fill:#e1f5fe
