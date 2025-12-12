@@ -30,6 +30,8 @@ You create an issue with idad:auto label
 🤖 Documenter Agent → updates documentation
          ↓
 👤 You review and merge the PR
+         ↓
+🤖 IDAD Agent → analyzes for system improvements
 ```
 
 ---
