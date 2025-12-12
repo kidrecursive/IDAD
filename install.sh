@@ -6,10 +6,10 @@
 # Install IDAD (Issue Driven Agentic Development) into any repository.
 #
 # USAGE:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 #
 # Or with options:
-#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --branch main --cli cursor
+#   curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash -s -- --branch main --cli cursor
 #
 ################################################################################
 
@@ -24,7 +24,7 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # Config
-IDAD_REPO="kidrecursive/idad-cursor"
+IDAD_REPO="kidrecursive/IDAD"
 IDAD_BRANCH="main"
 CLI_TYPE=""
 

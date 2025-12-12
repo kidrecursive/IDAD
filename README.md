@@ -41,7 +41,7 @@ You create an issue with idad:auto label
 Add IDAD to any existing repository with one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 ```
 
 The installer will:

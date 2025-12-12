@@ -1,18 +1,8 @@
-name: Test
+name: CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'install.sh'
-      - '.github/workflows/test.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'install.sh'
-      - '.github/workflows/test.yml'
 
 jobs:
   # Job 1: Validate YAML and lint scripts

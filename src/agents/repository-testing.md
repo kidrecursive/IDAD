@@ -47,7 +47,7 @@ elif [ -d ".claude/agents" ]; then
   CLI_TYPE="claude"
 else
   echo "❌ FAIL: No IDAD configuration found (.cursor/ or .claude/)"
-  echo "   Run the installer first: curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash"
+  echo "   Run the installer first: curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash"
   exit 1
 fi
 
@@ -901,7 +901,7 @@ timestamp: 2025-12-11T12:00:00Z
 
 Run the installer:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 ```
 
 ### "Missing secret: X"
