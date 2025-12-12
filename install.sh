@@ -99,18 +99,18 @@ echo ""
 if [ -z "$CLI_TYPE" ]; then
   echo -e "${BLUE}▶ Select your AI CLI tool:${NC}"
   echo ""
-  echo "  1) cursor  - Cursor Agent CLI (cursor-agent)"
-  echo "  2) claude  - Claude Code CLI (Anthropic)"
+  echo "  1) claude  - Claude Code CLI (Anthropic)"
+  echo "  2) cursor  - Cursor Agent CLI (cursor-agent)"
   echo ""
   echo -n "Enter choice [1]: "
   read CLI_CHOICE < /dev/tty
-  
+
   case "$CLI_CHOICE" in
-    2|claude)
-      CLI_TYPE="claude"
+    2|cursor)
+      CLI_TYPE="cursor"
       ;;
     *)
-      CLI_TYPE="cursor"
+      CLI_TYPE="claude"
       ;;
   esac
 fi
@@ -319,9 +319,9 @@ if [[ "$PROTECT_BRANCH" =~ ^[Yy]$ ]]; then
   DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
 
   # Use JSON input for proper type handling
-  gh api repos/${REPO}/branches/${DEFAULT_BRANCH}/protection -X PUT \
+  if gh api repos/${REPO}/branches/${DEFAULT_BRANCH}/protection -X PUT \
     -H "Accept: application/vnd.github+json" \
-    --input - <<'PROTECTION_JSON' 2>/dev/null && \
+    --input - 2>/dev/null <<EOF
 {
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": false,
@@ -338,9 +338,12 @@ if [[ "$PROTECT_BRANCH" =~ ^[Yy]$ ]]; then
   "lock_branch": false,
   "allow_fork_syncing": true
 }
-PROTECTION_JSON
-    echo -e "  ${GREEN}✓${NC} Branch protection enabled on '${DEFAULT_BRANCH}'" || \
+EOF
+  then
+    echo -e "  ${GREEN}✓${NC} Branch protection enabled on '${DEFAULT_BRANCH}'"
+  else
     echo -e "  ${YELLOW}⚠${NC} Could not set branch protection (may need admin access)"
+  fi
 else
   echo -e "  ${YELLOW}⚠${NC} Skipped - configure manually in repository settings"
 fi
