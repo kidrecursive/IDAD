@@ -1,45 +1,25 @@
 name: IDAD
 
 on:
-  # Real events - start the chain (GitHub App token allows this to work)
   issues:
-    types: [labeled]  # Labeled fires for ANY label, but we filter for idad:* labels
-  issue_comment:
-    types: [created]  # For issue clarification and plan review feedback
+    types: [labeled]
   pull_request:
-    types: [closed]  # For IDAD agent on merge
-  pull_request_review_comment:
-    types: [created]  # For human PR review feedback
-  
-  # Explicit dispatch - agent-to-agent handoff
-  workflow_dispatch:
-    inputs:
-      agent:
-        description: 'Agent to run'
-        required: true
-        type: choice
-        options:
-          - issue-review
-          - planner
-          - implementer
-          - security-scanner
-          - reviewer
-          - documenter
-          - idad
-          - reporting
-      issue:
-        description: 'Issue number'
-        type: string
-        default: ''
-      pr:
-        description: 'PR number'
-        type: string
-        default: ''
+    types: [labeled, closed]
+  issue_comment:
+    types: [created]
 
-# Global environment - tokens are generated per-job via GitHub App
+concurrency:
+  group: idad-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: write
+
 env:
-  # Model configuration (override via repository variables)
-  # Claude Code model names: claude-sonnet-4-20250514, claude-opus-4-20250514
+  # Claude Code model names
   MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'claude-sonnet-4-20250514' }}
   MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'claude-opus-4-20250514' }}
   MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'claude-sonnet-4-20250514' }}
@@ -49,189 +29,176 @@ env:
   MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'claude-sonnet-4-20250514' }}
   MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'claude-opus-4-20250514' }}
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  actions: write
-  workflows: write  # Required for gh workflow run
-
-# Prevent concurrent runs for same issue/PR
-concurrency:
-  group: idad-${{ github.event.issue.number || github.event.pull_request.number || inputs.issue || inputs.pr || github.run_id }}
-  cancel-in-progress: false
-
 jobs:
-  # Job 1: Determine what to do based on event or dispatch
-  dispatch:
+  # ======================
+  # ROUTER
+  # ======================
+  router:
     runs-on: ubuntu-latest
     outputs:
-      agent: ${{ steps.resolve.outputs.agent }}
-      issue: ${{ steps.resolve.outputs.issue }}
-      pr: ${{ steps.resolve.outputs.pr }}
-      model: ${{ steps.resolve.outputs.model }}
-      skip: ${{ steps.resolve.outputs.skip }}
-    
+      agent: ${{ steps.route.outputs.agent }}
+      model: ${{ steps.route.outputs.model }}
+      issue: ${{ steps.route.outputs.issue }}
+      pr: ${{ steps.route.outputs.pr }}
+      skip: ${{ steps.route.outputs.skip }}
+      message: ${{ steps.route.outputs.message }}
     steps:
-      - name: Get IDAD GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.IDAD_APP_ID }}
-          private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
-
-      - name: Resolve agent and context
-        id: resolve
+      - id: route
+        uses: actions/github-script@v7
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          # Default: skip unless we match a condition
-          SKIP="true"
-          AGENT=""
-          ISSUE=""
-          PR=""
+          MODEL_DEFAULT: ${{ env.MODEL_DEFAULT }}
+          MODEL_PLANNER: ${{ env.MODEL_PLANNER }}
+          MODEL_IMPLEMENTER: ${{ env.MODEL_IMPLEMENTER }}
+          MODEL_REVIEWER: ${{ env.MODEL_REVIEWER }}
+          MODEL_SECURITY: ${{ env.MODEL_SECURITY }}
+          MODEL_DOCUMENTER: ${{ env.MODEL_DOCUMENTER }}
+          MODEL_ISSUE_REVIEW: ${{ env.MODEL_ISSUE_REVIEW }}
+          MODEL_IDAD: ${{ env.MODEL_IDAD }}
+        with:
+          script: |
+            const { eventName, payload } = context;
+            const action = payload.action;
 
-          # === WORKFLOW_DISPATCH: Explicit agent trigger ===
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            AGENT="${{ inputs.agent }}"
-            ISSUE="${{ inputs.issue }}"
-            PR="${{ inputs.pr }}"
-            SKIP="false"
-            echo "📋 Manual dispatch: agent=$AGENT, issue=$ISSUE, pr=$PR"
+            // Model mapping
+            const models = {
+              'issue-review': process.env.MODEL_ISSUE_REVIEW,
+              'planner': process.env.MODEL_PLANNER,
+              'implementer': process.env.MODEL_IMPLEMENTER,
+              'security-scanner': process.env.MODEL_SECURITY,
+              'reviewer': process.env.MODEL_REVIEWER,
+              'documenter': process.env.MODEL_DOCUMENTER,
+              'idad': process.env.MODEL_IDAD,
+            };
 
-          # === ISSUES.LABELED: Check which idad:* label was added ===
-          elif [[ "${{ github.event_name }}" == "issues" && "${{ github.event.action }}" == "labeled" ]]; then
-            LABEL="${{ github.event.label.name }}"
-            ISSUE="${{ github.event.issue.number }}"
+            // Label to agent mapping (only ONE idad:* label at a time)
+            const labelToAgent = {
+              // Issue labels
+              'idad:issue-review': 'issue-review',
+              'idad:planning': 'planner',
+              'idad:implementing': 'implementer',
+              // PR labels
+              'idad:security-scan': 'security-scanner',
+              'idad:code-review': 'reviewer',
+              'idad:documenting': 'documenter',
+            };
 
-            case "$LABEL" in
-              "idad:issue-review")
-                AGENT="issue-review"
-                SKIP="false"
-                echo "📋 idad:issue-review label added to issue #$ISSUE"
-                ;;
-              "idad:planning")
-                AGENT="planner"
-                SKIP="false"
-                echo "📋 idad:planning label added to issue #$ISSUE"
-                ;;
-              "idad:implementing")
-                AGENT="implementer"
-                SKIP="false"
-                echo "📋 idad:implementing label added to issue #$ISSUE"
-                ;;
-              *)
-                echo "⏭️ Skipping: Label $LABEL is not an agent trigger"
-                ;;
-            esac
+            // Human review states (no agent, just log)
+            const humanStates = {
+              'idad:issue-needs-clarification': '❓ Issue needs clarification. Please answer the questions and comment.',
+              'idad:human-plan-review': '📋 Awaiting human plan review. Comment to provide feedback or approve.',
+              'idad:human-pr-review': '✅ Ready for human review and merge.',
+            };
 
-          # === ISSUE_COMMENT: Check for clarification or plan review feedback ===
-          elif [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.action }}" == "created" ]]; then
-            # Only process comments on issues (not PRs)
-            if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
-              ISSUE="${{ github.event.issue.number }}"
-              LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
-              COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+            let agent = '';
+            let issue = '';
+            let pr = '';
+            let skip = false;
+            let message = '';
 
-              # Skip comments from bots/apps (they end with [bot])
-              if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
-                echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
-              # Check if issue has idad:issue-needs-clarification - re-trigger issue review
-              elif echo "$LABELS" | grep -q "idad:issue-needs-clarification"; then
-                AGENT="issue-review"
-                SKIP="false"
-                echo "📋 Human comment on issue needing clarification #$ISSUE by $COMMENT_AUTHOR"
-              # Check if issue has idad:human-plan-review - trigger planner for feedback
-              elif echo "$LABELS" | grep -q "idad:human-plan-review"; then
-                AGENT="planner"
-                SKIP="false"
-                echo "📋 Human comment on plan-review issue #$ISSUE by $COMMENT_AUTHOR"
-              else
-                echo "⏭️ Skipping: Issue #$ISSUE does not have idad:issue-needs-clarification or idad:human-plan-review label"
-              fi
-            else
-              # This is a comment on a PR
-              PR="${{ github.event.issue.number }}"
-              LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
-              COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+            const getLabels = (obj) => obj?.labels?.map(l => l.name) || [];
+            const hasLabel = (labels, name) => labels.includes(name);
 
-              # Skip comments from bots
-              if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
-                echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
-              # Check if PR has idad:human-pr-review - human feedback triggers implementer
-              elif echo "$LABELS" | grep -q "idad:human-pr-review"; then
-                AGENT="implementer"
-                SKIP="false"
-                echo "📋 Human comment on PR #$PR during human-pr-review by $COMMENT_AUTHOR"
-              else
-                echo "⏭️ Skipping: PR #$PR does not have idad:human-pr-review label"
-              fi
-            fi
+            // === ISSUE LABELED ===
+            if (eventName === 'issues' && action === 'labeled') {
+              const labelName = payload.label?.name || '';
+              issue = String(payload.issue.number);
 
-          # === PR_REVIEW_COMMENT: Human PR review feedback ===
-          elif [[ "${{ github.event_name }}" == "pull_request_review_comment" && "${{ github.event.action }}" == "created" ]]; then
-            PR="${{ github.event.pull_request.number }}"
-            LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
-            COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+              if (labelToAgent[labelName]) {
+                agent = labelToAgent[labelName];
+              } else if (humanStates[labelName]) {
+                message = humanStates[labelName];
+                skip = true;
+              } else {
+                skip = true;
+              }
+            }
 
-            # Skip comments from bots
-            if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
-              echo "⏭️ Skipping: Review comment from bot ($COMMENT_AUTHOR)"
-            # Check if PR has idad:human-pr-review - human feedback triggers implementer
-            elif echo "$LABELS" | grep -q "idad:human-pr-review"; then
-              AGENT="implementer"
-              SKIP="false"
-              echo "📋 Human review comment on PR #$PR during human-pr-review by $COMMENT_AUTHOR"
-            else
-              echo "⏭️ Skipping: PR #$PR does not have idad:human-pr-review label"
-            fi
+            // === PR LABELED ===
+            else if (eventName === 'pull_request' && action === 'labeled') {
+              const labelName = payload.label?.name || '';
+              pr = String(payload.pull_request.number);
 
-          # === PR.CLOSED (merged): Trigger IDAD agent for self-improvement ===
-          elif [[ "${{ github.event_name }}" == "pull_request" && "${{ github.event.action }}" == "closed" ]]; then
-            if [[ "${{ github.event.pull_request.merged }}" == "true" ]]; then
-              BRANCH="${{ github.event.pull_request.head.ref }}"
+              if (labelToAgent[labelName]) {
+                agent = labelToAgent[labelName];
+              } else if (humanStates[labelName]) {
+                message = humanStates[labelName];
+                skip = true;
+              } else {
+                skip = true;
+              }
+            }
 
-              # Skip IDAD's own PRs (prevent loops)
-              if [[ "$BRANCH" =~ ^idad/ ]]; then
-                echo "⏭️ Skipping: IDAD's own branch ($BRANCH)"
-              else
-                AGENT="idad"
-                PR="${{ github.event.pull_request.number }}"
-                SKIP="false"
-                echo "📋 PR merged: #$PR"
-              fi
-            else
-              echo "⏭️ Skipping: PR closed without merge"
-            fi
-          else
-            echo "⏭️ Skipping: Unhandled event ${{ github.event_name }}/${{ github.event.action }}"
-          fi
+            // === PR MERGED (triggers IDAD agent) ===
+            else if (eventName === 'pull_request' && action === 'closed') {
+              const prData = payload.pull_request;
+              const branch = prData.head?.ref || '';
 
-          # === Select model for agent ===
-          case "$AGENT" in
-            planner)          MODEL="${{ env.MODEL_PLANNER }}" ;;
-            implementer)      MODEL="${{ env.MODEL_IMPLEMENTER }}" ;;
-            reviewer)         MODEL="${{ env.MODEL_REVIEWER }}" ;;
-            security-scanner) MODEL="${{ env.MODEL_SECURITY }}" ;;
-            documenter)       MODEL="${{ env.MODEL_DOCUMENTER }}" ;;
-            issue-review)     MODEL="${{ env.MODEL_ISSUE_REVIEW }}" ;;
-            idad)             MODEL="${{ env.MODEL_IDAD }}" ;;
-            *)                MODEL="${{ env.MODEL_DEFAULT }}" ;;
-          esac
+              // Skip IDAD's own PRs (prevent loops)
+              if (prData.merged && !branch.startsWith('idad/')) {
+                agent = 'idad';
+                pr = String(prData.number);
+              } else {
+                skip = true;
+              }
+            }
 
-          # Output results
-          echo "agent=$AGENT" >> $GITHUB_OUTPUT
-          echo "issue=$ISSUE" >> $GITHUB_OUTPUT
-          echo "pr=$PR" >> $GITHUB_OUTPUT
-          echo "model=$MODEL" >> $GITHUB_OUTPUT
-          echo "skip=$SKIP" >> $GITHUB_OUTPUT
+            // === COMMENT EVENTS ===
+            else if (eventName === 'issue_comment' && action === 'created') {
+              const commenter = payload.comment?.user?.login || '';
+              const isPrComment = !!payload.issue?.pull_request;
+              const labels = getLabels(payload.issue);
+              const number = String(payload.issue.number);
 
-  # Job 2: Run the agent
+              // Skip bot comments
+              if (commenter.includes('[bot]')) {
+                console.log('⏭️ Skipping bot comment');
+                skip = true;
+              }
+              // Issue comment with idad:issue-needs-clarification - re-trigger issue review
+              else if (!isPrComment && hasLabel(labels, 'idad:issue-needs-clarification')) {
+                agent = 'issue-review';
+                issue = number;
+              }
+              // Issue comment with idad:human-plan-review - planner processes feedback
+              else if (!isPrComment && hasLabel(labels, 'idad:human-plan-review')) {
+                agent = 'planner';
+                issue = number;
+              }
+              // PR comment with idad:human-pr-review - implementer addresses feedback
+              else if (isPrComment && hasLabel(labels, 'idad:human-pr-review')) {
+                agent = 'implementer';
+                pr = number;
+              }
+              else {
+                skip = true;
+              }
+            }
+
+            else {
+              skip = true;
+            }
+
+            // Get model for agent
+            const model = models[agent] || process.env.MODEL_DEFAULT;
+
+            // Set outputs
+            core.setOutput('agent', agent);
+            core.setOutput('model', model);
+            core.setOutput('issue', issue);
+            core.setOutput('pr', pr);
+            core.setOutput('skip', String(skip));
+            core.setOutput('message', message);
+
+            console.log(`🚦 Router: agent=${agent}, issue=${issue}, pr=${pr}, model=${model}, skip=${skip}`);
+            if (message) console.log(`📝 ${message}`);
+
+  # ======================
+  # AGENT
+  # ======================
   agent:
-    needs: dispatch
-    if: needs.dispatch.outputs.skip != 'true'
+    needs: router
     runs-on: ubuntu-latest
-    
+    if: needs.router.outputs.skip != 'true' && needs.router.outputs.agent != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -242,7 +209,7 @@ jobs:
         with:
           app-id: ${{ secrets.IDAD_APP_ID }}
           private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
-      
+
       - name: Cache Claude Code CLI
         id: cache-claude
         uses: actions/cache@v4
@@ -251,91 +218,59 @@ jobs:
           key: ${{ runner.os }}-claude-cli-v1
           restore-keys: |
             ${{ runner.os }}-claude-cli-
-      
+
       - name: Install Claude Code CLI
         if: steps.cache-claude.outputs.cache-hit != 'true'
-        run: |
-          curl -fsSL https://claude.ai/install.sh | bash
-      
+        run: curl -fsSL https://claude.ai/install.sh | bash
+
       - name: Add Claude to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-      
-      - name: Run ${{ needs.dispatch.outputs.agent }} agent
+
+      - name: Run ${{ needs.router.outputs.agent }} agent
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          AGENT: ${{ needs.dispatch.outputs.agent }}
-          ISSUE: ${{ needs.dispatch.outputs.issue }}
-          PR: ${{ needs.dispatch.outputs.pr }}
-          MODEL: ${{ needs.dispatch.outputs.model }}
+          AGENT: ${{ needs.router.outputs.agent }}
+          ISSUE: ${{ needs.router.outputs.issue }}
+          PR: ${{ needs.router.outputs.pr }}
+          MODEL: ${{ needs.router.outputs.model }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          echo "============================================="
-          echo "  IDAD Agent Runner (Claude Code)"
-          echo "============================================="
-          echo ""
-          echo "🤖 Agent: $AGENT"
-          echo "📋 Issue: ${ISSUE:-none}"
-          echo "🔀 PR: ${PR:-none}"
-          echo "🧠 Model: $MODEL"
-          echo ""
-          
+          echo "🤖 Running $AGENT agent"
+          echo "   Issue: ${ISSUE:-none}"
+          echo "   PR: ${PR:-none}"
+          echo "   Model: $MODEL"
+
           AGENT_FILE=".claude/agents/${AGENT}.md"
           RULES_FILE=".claude/rules/system.mdc"
-          
-          # Check agent file exists
+
           if [[ ! -f "$AGENT_FILE" ]]; then
             echo "❌ Agent file not found: $AGENT_FILE"
             exit 1
           fi
-          
-          # Check rules file exists
-          if [[ ! -f "$RULES_FILE" ]]; then
-            echo "❌ Rules file not found: $RULES_FILE"
-            exit 1
-          fi
-          
-          echo "📄 Agent file: $AGENT_FILE"
-          echo "📄 Rules file: $RULES_FILE"
-          echo ""
-          
-          # Build the prompt with context and agent definition
-          PROMPT="You are the ${AGENT} agent for IDAD.
 
-          CONTEXT:
-          - Repository: ${REPO}
-          - Issue: #${ISSUE:-N/A}
-          - PR: #${PR:-N/A}
-          - Workflow Run: ${RUN_ID}
-
-          INSTRUCTIONS:
-          Follow your agent definition exactly. Use 'gh' CLI for all GitHub operations.
-          Use 'git' for all repository operations. Post a summary comment with agentlog
-          block when done. Trigger the next appropriate agent via:
-            gh workflow run idad.yml -f agent=<next> -f issue=<num> -f pr=<num>
-
-          Execute your responsibilities now.
-
-          --- AGENT DEFINITION ---
-          $(cat "$AGENT_FILE")"
-          
-          # Run the agent using Claude Code CLI
+          # Claude Code uses --system-prompt for rules
           claude \
             ${MODEL:+--model "$MODEL"} \
             --system-prompt "$(cat "$RULES_FILE")" \
             --print \
             --dangerously-skip-permissions \
-            -p "$PROMPT"
-          
-          EXIT_CODE=$?
-          
-          if [[ $EXIT_CODE -eq 0 ]]; then
-            echo ""
-            echo "✅ Agent completed successfully"
-          else
-            echo ""
-            echo "❌ Agent failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+            -p "$(cat "$AGENT_FILE")
+
+          Execute your responsibilities now."
+
+  # ======================
+  # SUMMARY (for human states)
+  # ======================
+  summary:
+    needs: router
+    runs-on: ubuntu-latest
+    if: needs.router.outputs.message != ''
+    steps:
+      - name: Log human review state
+        run: |
+          echo "${{ needs.router.outputs.message }}"
+          echo "## IDAD Status" >> $GITHUB_STEP_SUMMARY
+          echo "${{ needs.router.outputs.message }}" >> $GITHUB_STEP_SUMMARY
