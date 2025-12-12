@@ -300,6 +300,323 @@ jobs:
 
 ---
 
+## Manual Testing with Test Repositories
+
+This section provides step-by-step procedures for setting up and using dedicated test repositories.
+
+### Setting Up Test Repositories
+
+#### Step 1: Create Test Repos
+
+Create two empty repositories for testing:
+
+```bash
+# Create Cursor test repo
+gh repo create idad-test-cursor --public --description "IDAD test repo (Cursor)" --clone
+cd idad-test-cursor
+echo "# IDAD Test - Cursor" > README.md
+git add . && git commit -m "init" && git push
+cd ..
+
+# Create Claude test repo
+gh repo create idad-test-claude --public --description "IDAD test repo (Claude)" --clone
+cd idad-test-claude
+echo "# IDAD Test - Claude" > README.md
+git add . && git commit -m "init" && git push
+cd ..
+```
+
+#### Step 2: Create GitHub App (One-Time Setup)
+
+You need ONE GitHub App that can be installed on both test repos:
+
+1. Go to https://github.com/settings/apps/new
+2. **Name**: `IDAD Test Automation`
+3. **Homepage URL**: `https://github.com/YOUR_USERNAME`
+4. **Webhook**: Uncheck "Active"
+5. **Repository Permissions**:
+   - Contents: Read and Write
+   - Issues: Read and Write
+   - Pull requests: Read and Write
+   - Actions: Read and Write
+   - Workflows: Read and Write
+6. Click **Create GitHub App**
+7. Note the **App ID**
+8. Generate and download a **Private Key** (.pem file)
+9. Click **Install App** → Select both test repos
+
+#### Step 3: Add Secrets to Test Repos
+
+```bash
+# For Cursor test repo
+cd idad-test-cursor
+gh secret set IDAD_APP_ID           # Enter your App ID
+gh secret set IDAD_APP_PRIVATE_KEY < ~/path/to/private-key.pem
+gh secret set CURSOR_API_KEY        # Enter your Cursor API key
+cd ..
+
+# For Claude test repo
+cd idad-test-claude
+gh secret set IDAD_APP_ID           # Same App ID
+gh secret set IDAD_APP_PRIVATE_KEY < ~/path/to/private-key.pem
+gh secret set ANTHROPIC_API_KEY     # Enter your Anthropic API key
+cd ..
+```
+
+---
+
+### Test Procedure: Fresh Installation
+
+Use this procedure to test a clean installation from scratch.
+
+#### Cursor CLI Test
+
+```bash
+cd idad-test-cursor
+
+# 1. Clean slate - remove any existing IDAD files
+rm -rf .cursor .claude .github/workflows/idad.yml .github/workflows/ci.yml
+git add -A && git commit -m "Clean slate for testing" && git push || true
+
+# 2. Run the installer (from the branch you want to test)
+# For main branch:
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --cli cursor
+
+# For a specific branch:
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/YOUR_BRANCH/install.sh | bash -s -- --cli cursor --branch YOUR_BRANCH
+
+# 3. Verify files were created
+echo "=== Checking files ==="
+ls -la .cursor/agents/
+ls -la .cursor/rules/
+ls -la .github/workflows/
+
+# 4. Verify workflow content
+echo "=== Workflow header ==="
+head -50 .github/workflows/idad.yml
+
+# 5. Push changes
+git push
+```
+
+#### Claude CLI Test
+
+```bash
+cd idad-test-claude
+
+# 1. Clean slate
+rm -rf .cursor .claude .github/workflows/idad.yml .github/workflows/ci.yml
+git add -A && git commit -m "Clean slate for testing" && git push || true
+
+# 2. Run the installer
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --cli claude
+
+# 3. Verify files
+echo "=== Checking files ==="
+ls -la .claude/agents/
+ls -la .claude/rules/
+ls -la .github/workflows/
+
+# 4. Verify workflow content
+echo "=== Workflow header ==="
+head -50 .github/workflows/idad.yml
+
+# 5. Push changes
+git push
+```
+
+---
+
+### Test Procedure: Agent Execution
+
+After installation, test that agents actually run.
+
+#### Test Issue Review Agent
+
+```bash
+cd idad-test-cursor  # or idad-test-claude
+
+# Create a test issue
+gh issue create \
+  --title "Test: Add greeting function" \
+  --label "idad:auto" \
+  --body "Create a simple greeting function that takes a name and returns 'Hello, {name}!'
+
+Requirements:
+- Function should be exported
+- Add unit tests
+- Handle edge cases (empty name, null)"
+
+# Note the issue number
+ISSUE_NUM=$(gh issue list --limit 1 --json number -q '.[0].number')
+echo "Created issue #$ISSUE_NUM"
+
+# Watch the workflow
+echo "Waiting for workflow to start..."
+sleep 5
+gh run list --workflow=idad.yml --limit 3
+
+# Watch specific run
+RUN_ID=$(gh run list --workflow=idad.yml --limit 1 --json databaseId -q '.[0].databaseId')
+gh run watch $RUN_ID
+```
+
+#### Test Full Agent Chain
+
+```bash
+# After Issue Review completes, manually trigger subsequent agents if needed:
+
+# Trigger Planner
+gh workflow run idad.yml -f agent="planner" -f issue="$ISSUE_NUM"
+
+# Wait and check
+sleep 30
+gh run list --workflow=idad.yml --limit 3
+
+# After Planner creates a plan, trigger Implementer
+gh workflow run idad.yml -f agent="implementer" -f issue="$ISSUE_NUM"
+
+# Check for PR
+gh pr list
+
+# After PR is created, trigger Security Scanner
+PR_NUM=$(gh pr list --limit 1 --json number -q '.[0].number')
+gh workflow run idad.yml -f agent="security-scanner" -f issue="$ISSUE_NUM" -f pr="$PR_NUM"
+
+# Continue through the chain...
+gh workflow run idad.yml -f agent="reviewer" -f issue="$ISSUE_NUM" -f pr="$PR_NUM"
+gh workflow run idad.yml -f agent="documenter" -f issue="$ISSUE_NUM" -f pr="$PR_NUM"
+```
+
+#### Verify Results
+
+```bash
+# Check issue comments
+gh issue view $ISSUE_NUM --comments
+
+# Check PR
+gh pr view $PR_NUM
+
+# Check PR comments
+gh pr view $PR_NUM --comments
+
+# Check workflow runs
+gh run list --workflow=idad.yml --limit 10
+```
+
+---
+
+### Test Procedure: Reinstallation / Upgrade
+
+Test upgrading from an existing installation.
+
+```bash
+cd idad-test-cursor
+
+# 1. Verify existing installation
+ls .cursor/agents/
+cat .github/workflows/idad.yml | grep -E "(MODEL_|name:)"
+
+# 2. Run installer again (should detect existing files)
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --cli cursor
+# Answer 'y' to overwrite prompt
+
+# 3. Verify files were updated
+git status
+git diff
+
+# 4. Commit and push
+git add -A && git commit -m "Upgrade IDAD" && git push
+```
+
+---
+
+### Test Procedure: Switching CLIs
+
+Test switching from Cursor to Claude (or vice versa).
+
+```bash
+cd idad-test-cursor  # Has Cursor installed
+
+# 1. Note existing setup
+ls -la .cursor/ .claude/ 2>/dev/null || true
+
+# 2. Install Claude (different CLI)
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/install.sh | bash -s -- --cli claude
+# Answer 'y' to overwrite
+
+# 3. Verify Claude files exist
+ls -la .claude/agents/
+ls -la .claude/rules/
+
+# 4. Verify workflow uses Claude
+grep "ANTHROPIC_API_KEY" .github/workflows/idad.yml
+grep ".claude/" .github/workflows/idad.yml
+
+# 5. Note: Old .cursor/ files may still exist - that's OK
+# The workflow determines which CLI is used
+```
+
+---
+
+### Quick Verification Commands
+
+Handy commands to quickly verify an installation:
+
+```bash
+# Check which CLI is configured
+if grep -q "CURSOR_API_KEY" .github/workflows/idad.yml; then
+  echo "Configured for: Cursor"
+  echo "Config dir: .cursor/"
+elif grep -q "ANTHROPIC_API_KEY" .github/workflows/idad.yml; then
+  echo "Configured for: Claude"
+  echo "Config dir: .claude/"
+fi
+
+# Count agent files
+echo "Agent files:"
+ls .cursor/agents/*.md 2>/dev/null | wc -l || echo "0 in .cursor"
+ls .claude/agents/*.md 2>/dev/null | wc -l || echo "0 in .claude"
+
+# Check secrets are set
+echo "Secrets configured:"
+gh secret list
+
+# Check labels exist
+echo "IDAD labels:"
+gh label list | grep -E "(idad|type:|state:)" | wc -l
+
+# Check recent workflow runs
+echo "Recent runs:"
+gh run list --workflow=idad.yml --limit 5 2>/dev/null || echo "No idad.yml workflow"
+```
+
+---
+
+### Cleanup Test Repos
+
+To reset a test repo for fresh testing:
+
+```bash
+cd idad-test-cursor
+
+# Option A: Remove IDAD files only
+rm -rf .cursor .claude .github/workflows/idad.yml .github/workflows/ci.yml
+git add -A && git commit -m "Remove IDAD for fresh test" && git push
+
+# Option B: Nuclear option - reset to initial commit
+git log --oneline | tail -1  # Find first commit
+git reset --hard <first-commit-hash>
+git push --force
+
+# Option C: Delete and recreate repo
+cd ..
+gh repo delete idad-test-cursor --yes
+gh repo create idad-test-cursor --public --clone
+```
+
+---
+
 ## Manual Testing Checklist
 
 ### Pre-release Checklist
