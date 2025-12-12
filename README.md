@@ -49,7 +49,6 @@ The installer will:
 - Download IDAD agent definitions and workflow
 - Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
-- Commit the files to your repo
 
 **Note**: CI workflow is NOT installed by default. The IDAD agent will automatically create an appropriate CI workflow based on your project's languages and testing frameworks after the first PR merges.
 

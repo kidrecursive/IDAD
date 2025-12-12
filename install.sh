@@ -89,7 +89,7 @@ REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo
 if [ -z "$REPO" ]; then
   echo -e "${YELLOW}⚠ Could not detect repository from gh CLI${NC}"
   echo -n "Enter repository (owner/repo): "
-  read REPO
+  read REPO < /dev/tty
 fi
 echo -e "  ${GREEN}✓${NC} Repository: ${REPO}"
 
@@ -103,7 +103,7 @@ if [ -z "$CLI_TYPE" ]; then
   echo "  2) claude  - Claude Code CLI (Anthropic)"
   echo ""
   echo -n "Enter choice [1]: "
-  read CLI_CHOICE
+  read CLI_CHOICE < /dev/tty
   
   case "$CLI_CHOICE" in
     2|claude)
@@ -145,7 +145,7 @@ echo ""
 if [ -d "$CONFIG_DIR/agents" ] || [ -d ".cursor/agents" ] || [ -d ".claude/agents" ] || [ -f ".github/workflows/idad.yml" ]; then
   echo -e "${YELLOW}⚠ IDAD files already exist in this repository${NC}"
   echo -n "Overwrite? (y/N): "
-  read OVERWRITE
+  read OVERWRITE < /dev/tty
   if [[ ! "$OVERWRITE" =~ ^[Yy]$ ]]; then
     echo "Aborted."
     exit 0
@@ -236,7 +236,7 @@ else
   echo "  3. Note the App ID (shown on app settings page)"
   echo ""
   echo -n "Enter your App ID (or press Enter to skip): "
-  read APP_ID
+  read APP_ID < /dev/tty
   
   if [ -n "$APP_ID" ]; then
     echo "$APP_ID" | gh secret set IDAD_APP_ID --repo "$REPO"
@@ -255,7 +255,7 @@ else
   echo -e "${YELLOW}Enter the path to your GitHub App private key (.pem file)${NC}"
   echo ""
   echo -n "Path to .pem file (or press Enter to skip): "
-  read PEM_PATH
+  read PEM_PATH < /dev/tty
   
   if [ -n "$PEM_PATH" ] && [ -f "$PEM_PATH" ]; then
     gh secret set IDAD_APP_PRIVATE_KEY --repo "$REPO" < "$PEM_PATH"
@@ -279,7 +279,7 @@ else
   echo "Get your API key at: ${CYAN}${API_KEY_URL}${NC}"
   echo ""
   echo -n "Paste your ${API_KEY_NAME} key (or press Enter to skip): "
-  read -s API_KEY
+  read -s API_KEY < /dev/tty
   echo ""
   
   if [ -n "$API_KEY" ]; then
@@ -333,42 +333,6 @@ gh api repos/${REPO}/actions/permissions/workflow -X PUT \
   echo -e "  ${YELLOW}⚠${NC} Could not set workflow permissions (may need admin access)"
 
 echo ""
-
-# Commit files
-echo -e "${BLUE}▶ Committing IDAD files...${NC}"
-
-git add "$CONFIG_DIR/" .github/workflows/idad.yml
-if [ -f "CLAUDE.md" ]; then
-  git add CLAUDE.md
-fi
-
-if git diff --staged --quiet; then
-  echo -e "  ${YELLOW}⚠${NC} No changes to commit (files already exist)"
-else
-  git commit -m "feat: add IDAD (Issue Driven Agentic Development)
-
-Installed via: curl -fsSL https://raw.githubusercontent.com/${IDAD_REPO}/main/install.sh | bash
-CLI: ${CLI_DISPLAY}
-
-Components:
-- $CONFIG_DIR/agents/ - 8 AI agent definitions
-- $CONFIG_DIR/rules/system.$RULES_EXT - System context
-- .github/workflows/idad.yml - Main workflow
-
-Note: CI workflow will be created by IDAD agent based on your project's needs."
-
-  echo -e "  ${GREEN}✓${NC} Changes committed"
-  
-  echo ""
-  echo -n "Push to remote? (Y/n): "
-  read PUSH_CONFIRM
-  if [[ ! "$PUSH_CONFIRM" =~ ^[Nn]$ ]]; then
-    git push
-    echo -e "  ${GREEN}✓${NC} Pushed to remote"
-  fi
-fi
-
-echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}║   ✓ IDAD Installation Complete!                               ║${NC}"
@@ -378,12 +342,18 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo -e "${CYAN}Next steps:${NC}"
 echo ""
-echo "1. Create your first automated issue:"
+echo "1. Review and commit the IDAD files:"
+echo -e "   ${YELLOW}git add $CONFIG_DIR/ .github/workflows/idad.yml && git commit -m 'feat: add IDAD'${NC}"
+echo ""
+echo "2. Push to remote:"
+echo -e "   ${YELLOW}git push${NC}"
+echo ""
+echo "3. Create your first automated issue:"
 echo -e "   ${YELLOW}gh issue create --title 'My feature' --label 'idad:auto' --body 'Description'${NC}"
 echo ""
-echo "2. Watch the agents work:"
+echo "4. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"
 echo ""
-echo "3. Read the docs:"
+echo "5. Read the docs:"
 echo -e "   ${YELLOW}https://github.com/${IDAD_REPO}#readme${NC}"
 echo ""
