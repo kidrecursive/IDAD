@@ -287,6 +287,63 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 
 ---
 
+## Workflow Diagram
+
+```mermaid
+flowchart TD
+    subgraph Issue["📋 Issue Phase"]
+        A[/"👤 Create Issue<br/>+ idad:auto label"/]
+        B["🤖 Issue Review Agent<br/>Refines & classifies"]
+    end
+
+    subgraph Planning["🗺️ Planning Phase"]
+        C["🤖 Planner Agent<br/>Creates implementation plan"]
+        D{"👤 Review Plan"}
+        E["🤖 Planner Agent<br/>Updates plan"]
+    end
+
+    subgraph Implementation["💻 Implementation Phase"]
+        F["🤖 Implementer Agent<br/>Writes code & tests"]
+        G["🔒 Security Scanner<br/>Checks vulnerabilities"]
+        H["✅ CI<br/>Runs tests"]
+    end
+
+    subgraph Review["🔍 Review Phase"]
+        I["🤖 Reviewer Agent<br/>Code review"]
+        J["🤖 Documenter Agent<br/>Updates docs"]
+    end
+
+    subgraph Completion["✨ Completion"]
+        K{"👤 Review PR"}
+        L["🎉 Merge PR"]
+        M["🤖 IDAD Agent<br/>System improvements"]
+    end
+
+    A --> B
+    B --> C
+    C --> D
+    D -->|"Changes needed"| E
+    E --> D
+    D -->|"Approved ✓"| F
+    F --> G
+    G --> H
+    H --> I
+    I -->|"Changes needed"| F
+    I -->|"Approved ✓"| J
+    J --> K
+    K -->|"Changes needed"| F
+    K -->|"Approved ✓"| L
+    L --> M
+
+    style A fill:#e1f5fe
+    style D fill:#fff3e0
+    style K fill:#fff3e0
+    style L fill:#c8e6c9
+    style M fill:#f3e5f5
+```
+
+---
+
 ## License
 
 MIT
