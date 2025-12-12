@@ -1,792 +1,660 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDAD - Issue Driven Agentic Development</title>
-  <meta name="description" content="Create issues, get PRs automatically. AI agents handle your entire development workflow.">
-  <style>
-    :root {
-      --bg-dark: #1e1e1e;
-      --bg-terminal: #282c34;
-      --bg-window: #21252b;
-      --border-color: #3d3d3d;
-      --text-primary: #abb2bf;
-      --text-bright: #e6e6e6;
-      --text-dim: #5c6370;
-      --green: #98c379;
-      --green-bright: #7ec699;
-      --red: #e06c75;
-      --yellow: #e5c07b;
-      --blue: #61afef;
-      --purple: #c678dd;
-      --cyan: #56b6c2;
-      --orange: #d19a66;
-      --title-bar: #323842;
-      --traffic-red: #ff5f56;
-      --traffic-yellow: #ffbd2e;
-      --traffic-green: #27c93f;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      min-height: 100vh;
-      color: var(--text-primary);
-      line-height: 1.6;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-
-    /* Terminal Window */
-    .terminal-window {
-      background: var(--bg-terminal);
-      border-radius: 10px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      overflow: hidden;
-      margin-bottom: 30px;
-    }
-
-    .title-bar {
-      background: var(--title-bar);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .traffic-lights {
-      display: flex;
-      gap: 8px;
-    }
-
-    .traffic-light {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .traffic-light.red { background: var(--traffic-red); }
-    .traffic-light.yellow { background: var(--traffic-yellow); }
-    .traffic-light.green { background: var(--traffic-green); }
-
-    .title-bar-text {
-      flex: 1;
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 13px;
-    }
-
-    .terminal-content {
-      padding: 20px 24px;
-      min-height: 100px;
-    }
-
-    /* Typography */
-    .prompt {
-      color: var(--green);
-    }
-
-    .prompt::before {
-      content: '$ ';
-    }
-
-    .command {
-      color: var(--text-bright);
-    }
-
-    .comment {
-      color: var(--text-dim);
-    }
-
-    .comment::before {
-      content: '# ';
-    }
-
-    .output {
-      color: var(--text-primary);
-      margin: 8px 0;
-    }
-
-    .success {
-      color: var(--green);
-    }
-
-    .error {
-      color: var(--red);
-    }
-
-    .highlight {
-      color: var(--yellow);
-    }
-
-    .link {
-      color: var(--blue);
-    }
-
-    .purple {
-      color: var(--purple);
-    }
-
-    .cyan {
-      color: var(--cyan);
-    }
-
-    .orange {
-      color: var(--orange);
-    }
-
-    /* Hero Section */
-    .hero-title {
-      font-size: 2.5rem;
-      color: var(--green-bright);
-      text-shadow: 0 0 20px rgba(152, 195, 121, 0.3);
-      margin-bottom: 8px;
-    }
-
-    .hero-subtitle {
-      font-size: 1.1rem;
-      color: var(--text-dim);
-      margin-bottom: 20px;
-    }
-
-    .tagline {
-      font-size: 1.3rem;
-      color: var(--text-bright);
-      margin: 20px 0;
-    }
-
-    /* ASCII Art */
-    .ascii-art {
-      color: var(--green);
-      font-size: 10px;
-      line-height: 1.2;
-      margin: 16px 0;
-      white-space: pre;
-      overflow-x: auto;
-    }
-
-    @media (min-width: 768px) {
-      .ascii-art {
-        font-size: 12px;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IDAD - Issue Driven Agentic Development</title>
+    <meta
+      name="description"
+      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+    />
+    <link rel="icon" href="https://github.com/kidrecursive.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="IDAD - Issue Driven Agentic Development" />
+    <meta
+      property="og:description"
+      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+    />
+    <meta property="og:image" content="https://github.com/kidrecursive.png" />
+    <meta property="og:url" content="https://idad.io" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="IDAD - Issue Driven Agentic Development" />
+    <meta
+      name="twitter:description"
+      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+    />
+    <meta name="twitter:image" content="https://github.com/kidrecursive.png" />
+    <style>
+      :root {
+        --background: #000000;
+        --foreground: #ededed;
+        --subtitle: #cccccc;
+        --blockquote: #aaa;
+        --link: #6cb6ff;
+        --link-visited: #a78bfa;
       }
-    }
-
-    /* Workflow Diagram */
-    .workflow {
-      margin: 20px 0;
-    }
-
-    .workflow-step {
-      display: flex;
-      align-items: center;
-      margin: 4px 0;
-      padding: 4px 0;
-    }
-
-    .workflow-arrow {
-      color: var(--text-dim);
-      margin: 4px 0 4px 40px;
-    }
-
-    .agent-icon {
-      width: 24px;
-      text-align: center;
-      margin-right: 12px;
-    }
-
-    /* Feature Grid */
-    .features {
-      display: grid;
-      gap: 20px;
-      margin: 20px 0;
-    }
-
-    @media (min-width: 600px) {
-      .features {
-        grid-template-columns: repeat(2, 1fr);
+      * {
+        box-sizing: border-box;
+        padding: 0;
+        margin: 0;
       }
-    }
-
-    .feature {
-      padding: 16px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 6px;
-      border-left: 3px solid var(--green);
-    }
-
-    .feature-title {
-      color: var(--cyan);
-      font-size: 1rem;
-      margin-bottom: 8px;
-    }
-
-    .feature-desc {
-      color: var(--text-primary);
-      font-size: 0.9rem;
-    }
-
-    /* Code Blocks */
-    .code-block {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 16px;
-      border-radius: 6px;
-      margin: 16px 0;
-      overflow-x: auto;
-    }
-
-    .code-block code {
-      font-family: inherit;
-    }
-
-    /* Blinking Cursor */
-    .cursor {
-      display: inline-block;
-      width: 8px;
-      height: 16px;
-      background: var(--text-bright);
-      animation: blink 1s infinite;
-      vertical-align: middle;
-      margin-left: 4px;
-    }
-
-    @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
-    }
-
-    /* Dad Joke Styling */
-    .dad-joke {
-      background: linear-gradient(90deg, rgba(152, 195, 121, 0.1), transparent);
-      border-left: 2px solid var(--yellow);
-      padding: 12px 16px;
-      margin: 20px 0;
-      font-style: italic;
-      color: var(--text-dim);
-    }
-
-    .dad-joke::before {
-      content: '🤖 ';
-    }
-
-    /* Agent List */
-    .agent-list {
-      margin: 16px 0;
-    }
-
-    .agent-item {
-      display: flex;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .agent-item:last-child {
-      border-bottom: none;
-    }
-
-    .agent-name {
-      color: var(--purple);
-      width: 160px;
-      flex-shrink: 0;
-    }
-
-    .agent-purpose {
-      color: var(--text-primary);
-    }
-
-    /* CTA Button */
-    .cta-section {
-      text-align: center;
-      margin: 30px 0;
-    }
-
-    .cta-button {
-      display: inline-block;
-      background: var(--green);
-      color: var(--bg-dark);
-      padding: 14px 32px;
-      border-radius: 6px;
-      text-decoration: none;
-      font-weight: bold;
-      font-size: 1rem;
-      transition: all 0.2s;
-      border: none;
-      cursor: pointer;
-    }
-
-    .cta-button:hover {
-      background: var(--green-bright);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(152, 195, 121, 0.4);
-    }
-
-    /* Stats */
-    .stats {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin: 20px 0;
-      text-align: center;
-    }
-
-    .stat {
-      flex: 1;
-      min-width: 120px;
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      color: var(--cyan);
-      font-weight: bold;
-    }
-
-    .stat-label {
-      color: var(--text-dim);
-      font-size: 0.85rem;
-    }
-
-    /* Footer */
-    .footer {
-      text-align: center;
-      padding: 20px;
-      color: var(--text-dim);
-      font-size: 0.85rem;
-    }
-
-    .footer a {
-      color: var(--blue);
-      text-decoration: none;
-    }
-
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Progress animation */
-    .typing-effect {
-      overflow: hidden;
-      white-space: nowrap;
-      animation: typing 2s steps(40, end);
-    }
-
-    @keyframes typing {
-      from { width: 0; }
-      to { width: 100%; }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--bg-terminal);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border-color);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--text-dim);
-    }
-
-    /* Install command highlight */
-    .install-command {
-      background: rgba(152, 195, 121, 0.1);
-      border: 1px solid var(--green);
-      border-radius: 6px;
-      padding: 16px 20px;
-      margin: 16px 0;
-      font-size: 0.95rem;
-    }
-
-    /* Labels */
-    .label {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      margin: 2px;
-    }
-
-    .label-auto {
-      background: rgba(197, 222, 245, 0.2);
-      color: #c5def5;
-      border: 1px solid #c5def5;
-    }
-
-    .label-ready {
-      background: rgba(14, 138, 22, 0.2);
-      color: #98c379;
-      border: 1px solid #98c379;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <!-- Hero Terminal -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
+      body {
+        color: var(--foreground);
+        background: var(--background);
+        line-height: 1.7;
+        font-size: 20px;
+        font-family: sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      main {
+        max-width: 720px;
+        margin: 60px auto;
+        padding: 0 20px;
+      }
+      h1,
+      h2,
+      h3 {
+        font-weight: 700;
+        line-height: 1.3;
+        margin-top: 2em;
+        margin-bottom: 0.5em;
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 1.6em;
+      }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6em;
+      }
+      .title-row h1 {
+        margin-bottom: 0;
+      }
+      .avatar {
+        width: 1.5em;
+        height: 1.5em;
+        border-radius: 50%;
+      }
+      h2 {
+        font-size: 1.3em;
+      }
+      h3 {
+        font-size: 1.1em;
+      }
+      h4 {
+        font-size: 0.9em;
+        font-weight: normal;
+        color: var(--subtitle);
+      }
+      p {
+        margin-bottom: 1.5em;
+      }
+      blockquote {
+        border-left: 3px solid var(--subtitle);
+        margin: 1.5em 0;
+        padding-left: 1em;
+        color: var(--blockquote);
+        font-style: italic;
+      }
+      a {
+        color: var(--link);
+        text-decoration: none;
+      }
+      a:visited {
+        color: var(--link-visited);
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      ul,
+      ol {
+        padding-left: 1.5em;
+        margin-bottom: 1.5em;
+      }
+      li {
+        margin-bottom: 0.5em;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #333;
+        margin: 2em 0;
+      }
+      pre {
+        position: relative;
+        font-family: ui-monospace, monospace;
+        font-size: 0.85em;
+        background: #111;
+        padding: 1em;
+        margin-bottom: 1.5em;
+        overflow-x: auto;
+      }
+      code {
+        font-family: ui-monospace, monospace;
+        font-size: 0.9em;
+        background: #111;
+        padding: 0.2em 0.4em;
+      }
+      pre code {
+        padding: 0;
+        background: none;
+        font-size: inherit;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 1.5em;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.5em;
+        border-bottom: 1px solid #333;
+      }
+      th {
+        color: var(--subtitle);
+      }
+      pre.install {
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .copy-btn {
+        position: absolute;
+        top: 0.5em;
+        right: 0.5em;
+        background: #333;
+        color: var(--foreground);
+        border: none;
+        padding: 0.25em 0.5em;
+        cursor: pointer;
+        font-size: 0.8em;
+      }
+      .copy-btn:hover {
+        background: #444;
+      }
+      .cm {
+        color: #666;
+      }
+      .st {
+        color: #98c379;
+      }
+      .fl {
+        color: #61afef;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h4>Issue Driven Agentic Development</h4>
+        <div class="title-row">
+          <h1>IDAD</h1>
+          <img
+            src="https://github.com/kidrecursive.png"
+            alt="kidrecursive"
+            class="avatar"
+          />
         </div>
-        <div class="title-bar-text">idad — zsh — 120×40</div>
-      </div>
-      <div class="terminal-content">
-        <pre class="ascii-art">
-  ██╗██████╗  █████╗ ██████╗ 
-  ██║██╔══██╗██╔══██╗██╔══██╗
-  ██║██║  ██║███████║██║  ██║
-  ██║██║  ██║██╔══██║██║  ██║
-  ██║██████╔╝██║  ██║██████╔╝
-  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝ 
-</pre>
-        <div class="hero-subtitle">Issue Driven Agentic Development</div>
-        <p class="tagline">
-          <span class="success">Create issues</span>, 
-          <span class="highlight">get PRs automatically</span>.<br>
-          AI agents handle your entire development workflow.
+        <p>
+          Create issues, get PRs automatically. AI agents handle your entire
+          development workflow. Supports both
+          <a
+            href="https://docs.cursor.com/agent/cli"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Cursor Agent</a
+          >
+          and
+          <a
+            href="https://claude.ai/code"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Claude Code</a
+          >
+          CLIs.
         </p>
-        
-        <div class="dad-joke">
-          Why do developers love IDAD? Because it's their new favorite DAD — it actually finishes the projects it starts!
-        </div>
+        <p>
+          <a
+            href="https://github.com/kidrecursive/idad"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          ·
+          <a
+            href="https://github.com/kidrecursive/idad/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            >MIT License</a
+          >
+        </p>
+      </header>
 
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-value">6</div>
-            <div class="stat-label">AI Agents</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">~8min</div>
-            <div class="stat-label">Issue → PR</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value">∞</div>
-            <div class="stat-label">Dad Jokes Avoided</div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <hr />
 
-    <!-- How It Works -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">workflow.md</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">How IDAD works</p>
-        <br>
-        <div class="workflow">
-          <div class="workflow-step">
-            <span class="agent-icon">👤</span>
-            <span class="text-bright">You create issue with <span class="label label-auto">idad:auto</span></span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🔍</span>
-            <span><span class="purple">Issue Review</span> → refines & classifies</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🗺️</span>
-            <span><span class="purple">Planner</span> → creates implementation plan</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">💻</span>
-            <span><span class="purple">Implementer</span> → writes code & tests</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🔒</span>
-            <span><span class="purple">Security Scanner</span> → checks vulnerabilities</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">✅</span>
-            <span><span class="cyan">CI</span> → runs tests</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">👀</span>
-            <span><span class="purple">Reviewer</span> → code review</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">📚</span>
-            <span><span class="purple">Documenter</span> → updates docs</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🎉</span>
-            <span class="success">You review & merge the PR</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🤖</span>
-            <span><span class="purple">IDAD</span> → analyzes & self-improves</span>
-          </div>
-          <div class="workflow-arrow">↓</div>
-          <div class="workflow-step">
-            <span class="agent-icon">🔁</span>
-            <span class="text-dim">Loop continues...</span>
-          </div>
-        </div>
-        
-        <div class="dad-joke">
-          I asked IDAD to write a function. It said "I'm not just any DAD, I'm a FUN-ction dad!" ...I'll see myself out.
-        </div>
-      </div>
-    </div>
+      <section>
+        <h2>Why IDAD?</h2>
+        <ul>
+          <li>
+            <strong>Zero to PR asynchronously</strong> — From issue to
+            ready-to-merge pull request. No more context switching between
+            planning, coding, testing, and reviewing.
+          </li>
+          <li>
+            <strong>Self-improving system</strong> — After each merge, IDAD
+            analyzes changes and updates itself to work better with your stack.
+          </li>
+          <li>
+            <strong>Opt-in automation</strong> — Full control with the
+            <code>idad:auto</code> label. Only automate what you want. Pause
+            anytime.
+          </li>
+          <li>
+            <strong>Security first</strong> — Dedicated Security Scanner agent
+            checks for vulnerabilities before any code reaches review.
+          </li>
+          <li>
+            <strong>Auto documentation</strong> — Documenter agent updates your
+            README and docs automatically.
+          </li>
+          <li>
+            <strong>GitHub native</strong> — Built on GitHub Actions. No
+            external services, no new tools to learn. Works with your existing
+            workflow.
+          </li>
+        </ul>
+        <blockquote>
+          Why do developers love IDAD? Because it's their new favorite DAD — it
+          actually finishes the projects it starts.
+        </blockquote>
+      </section>
 
-    <!-- Install -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">install.sh</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">Add IDAD to any repo with one command</p>
-        <br>
-        <div class="install-command">
-          <span class="prompt"></span><span class="command">curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash</span><span class="cursor"></span>
-        </div>
-        
-        <div class="output">
-          <span class="success">✓</span> Downloaded agent definitions<br>
-          <span class="success">✓</span> Configured GitHub workflows<br>
-          <span class="success">✓</span> Created repository labels<br>
-          <span class="success">✓</span> Set up permissions<br>
-          <br>
-          <span class="highlight">Ready!</span> Create your first automated issue:
-        </div>
-        
-        <div class="code-block">
-          <code>
-<span class="prompt"></span><span class="command">gh issue create \</span>
-  <span class="command">--title "Add hello world feature" \</span>
-  <span class="command">--label "idad:auto" \</span>
-  <span class="command">--body "Create a simple hello world function with tests."</span>
-          </code>
-        </div>
-        
-        <div class="output">
-          <span class="comment">Watch the magic happen</span><br>
-          <span class="prompt"></span><span class="command">gh run list --workflow=idad.yml --limit 5</span>
-        </div>
-      </div>
-    </div>
+      <hr />
 
-    <!-- Features -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">features.json</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">Why developers choose IDAD</p>
-        <br>
-        <div class="features">
-          <div class="feature">
-            <div class="feature-title">🚀 Zero to PR in Minutes</div>
-            <div class="feature-desc">From issue to ready-to-merge PR in ~8 minutes. No more context switching between planning, coding, testing, and reviewing.</div>
-          </div>
-          <div class="feature">
-            <div class="feature-title">🔄 Self-Improving System</div>
-            <div class="feature-desc">IDAD learns from your codebase. After each merge, it analyzes changes and updates itself to work better with your stack.</div>
-          </div>
-          <div class="feature">
-            <div class="feature-title">🎯 Opt-In Automation</div>
-            <div class="feature-desc">Full control with the <code class="label label-auto">idad:auto</code> label. Only automate what you want. Pause anytime.</div>
-          </div>
-          <div class="feature">
-            <div class="feature-title">🔒 Security First</div>
-            <div class="feature-desc">Dedicated Security Scanner agent checks for vulnerabilities before any code reaches review. Sleep better at night.</div>
-          </div>
-          <div class="feature">
-            <div class="feature-title">📝 Auto Documentation</div>
-            <div class="feature-desc">Documenter agent updates your README and docs automatically. Because writing docs is everyone's favorite task, right?</div>
-          </div>
-          <div class="feature">
-            <div class="feature-title">🔗 GitHub Native</div>
-            <div class="feature-desc">Built on GitHub Actions. No external services, no new tools to learn. Works with your existing workflow.</div>
-          </div>
-        </div>
-        
-        <div class="dad-joke">
-          What did the developer say to IDAD? "You're not like a regular DAD, you're a cool DAD — you actually help with my PRoblems!"
-        </div>
-      </div>
-    </div>
+      <section>
+        <h2>How It Works</h2>
+        <pre><code>You create an issue with idad:auto label
+         ↓
+🤖 Issue Review Agent → refines and classifies
+         ↓
+🤖 Planner Agent → creates implementation plan
+         ↓
+👤 You review the plan → approve or request changes
+         ↓
+🤖 Implementer Agent → writes code and tests
+         ↓
+🔒 Security Scanner → checks for vulnerabilities
+         ↓
+✅ CI → runs tests
+         ↓
+🤖 Reviewer Agent → performs code review
+         ↓
+🤖 Documenter Agent → updates documentation
+         ↓
+👤 You review and merge the PR
+         ↓
+🤖 IDAD Agent → analyzes for system improvements</code></pre>
 
-    <!-- Agents -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">agents.yml</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">Meet the team (they work for free, no pizza required)</p>
-        <br>
-        <div class="agent-list">
-          <div class="agent-item">
-            <span class="agent-name">🔍 Issue Review</span>
-            <span class="agent-purpose">Refines requirements, asks clarifying questions, classifies issue type</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">🗺️ Planner</span>
-            <span class="agent-purpose">Creates step-by-step implementation plans, breaks down complex features</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">💻 Implementer</span>
-            <span class="agent-purpose">Writes code, creates tests, opens PRs — the one who actually ships</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">🔒 Security Scanner</span>
-            <span class="agent-purpose">Scans for vulnerabilities, checks for secrets, validates security practices</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">👀 Reviewer</span>
-            <span class="agent-purpose">Reviews code quality, checks requirements coverage, approves or requests changes</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">📚 Documenter</span>
-            <span class="agent-purpose">Updates README, adds usage examples, keeps docs in sync with code</span>
-          </div>
-          <div class="agent-item">
-            <span class="agent-name">🤖 IDAD</span>
-            <span class="agent-purpose">Self-improvement agent — evolves the system based on your project</span>
-          </div>
-        </div>
-      </div>
-    </div>
+        <p>
+          The key insight: <strong>humans stay in control</strong> at critical
+          points. You approve the plan before coding starts, and you review the
+          final PR before merging.
+        </p>
+      </section>
 
-    <!-- Try It -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">try-it.sh</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">Ready to let DAD handle it?</p>
-        <br>
-        <div class="code-block">
-          <pre><span class="comment">Clone any repo you want to automate</span>
-<span class="prompt"></span><span class="command">cd your-awesome-project</span>
+      <hr />
 
-<span class="comment">Install IDAD (takes ~30 seconds)</span>
-<span class="prompt"></span><span class="command">curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash</span>
+      <section>
+        <h2>Install</h2>
+        <p>Add IDAD to any existing repository with one command:</p>
+        <pre
+          class="install"
+        ><code>curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh | bash</code></pre>
 
-<span class="comment">Create your first automated issue</span>
-<span class="prompt"></span><span class="command">gh issue create --title "Add feature X" --label "idad:auto" --body "Description here"</span>
+        <p>The installer will:</p>
+        <ul>
+          <li>Ask which AI CLI you want to use (Cursor or Claude Code)</li>
+          <li>Download IDAD agent definitions and workflow</li>
+          <li>Guide you through GitHub App and API key setup</li>
+          <li>Configure repository labels and permissions</li>
+          <li>Commit the files to your repo</li>
+        </ul>
+      </section>
 
-<span class="comment">Go grab a coffee ☕</span>
-<span class="prompt"></span><span class="command">gh run watch</span>
+      <hr />
 
-<span class="comment">Come back to a ready PR 🎉</span>
-<span class="prompt"></span><span class="command">gh pr view --web</span></pre>
-        </div>
-        
-        <div class="cta-section">
-          <a href="https://github.com/kidrecursive/idad" class="cta-button">
-            ⭐ Star on GitHub
-          </a>
-        </div>
-        
-        <div class="dad-joke">
-          I told my code it had bugs. IDAD said "Don't worry, I'll handle it — that's what DADs do." Now it has tests AND it's documented. Didn't even threaten to turn this car around.
-        </div>
-      </div>
-    </div>
+      <section>
+        <h2>GitHub App Setup</h2>
+        <p>
+          IDAD requires a GitHub App to enable workflows to trigger other
+          workflows and perform automated actions.
+        </p>
 
-    <!-- Requirements -->
-    <div class="terminal-window">
-      <div class="title-bar">
-        <div class="traffic-lights">
-          <div class="traffic-light red"></div>
-          <div class="traffic-light yellow"></div>
-          <div class="traffic-light green"></div>
-        </div>
-        <div class="title-bar-text">requirements.txt</div>
-      </div>
-      <div class="terminal-content">
-        <p class="comment">What you need</p>
-        <br>
-        <div class="output">
-          <span class="success">✓</span> GitHub repository (public or private)<br>
-          <span class="success">✓</span> <a href="https://cli.github.com/" class="link">GitHub CLI</a> installed<br>
-          <span class="success">✓</span> <a href="https://cursor.com" class="link">Cursor</a> API key<br>
-          <span class="success">✓</span> <a href="https://github.com/settings/apps" class="link">GitHub App</a> with repo permissions<br>
-          <span class="success">✓</span> A desire to ship faster<br>
-        </div>
-        <br>
-        <p class="comment">What IDAD handles</p>
-        <br>
-        <div class="output">
-          <span class="cyan">→</span> Issue refinement & planning<br>
-          <span class="cyan">→</span> Code implementation<br>
-          <span class="cyan">→</span> Test creation<br>
-          <span class="cyan">→</span> Security scanning<br>
-          <span class="cyan">→</span> Code review<br>
-          <span class="cyan">→</span> Documentation<br>
-          <span class="cyan">→</span> PR creation & management<br>
-        </div>
-      </div>
-    </div>
+        <h3>1. Create the GitHub App</h3>
+        <p>
+          Go to
+          <a
+            href="https://github.com/settings/apps/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub App Settings</a
+          >
+          and configure:
+        </p>
+        <ul>
+          <li>
+            <strong>Name:</strong> IDAD Automation (or your preferred name)
+          </li>
+          <li><strong>Homepage URL:</strong> Your repository URL</li>
+          <li><strong>Webhook:</strong> Uncheck "Active" (not needed)</li>
+        </ul>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <p>
-        Built with <span class="red">❤</span> by AI agents, for human developers
-      </p>
-      <p style="margin-top: 8px;">
-        <a href="https://github.com/kidrecursive/idad">GitHub</a> · 
-        <a href="https://github.com/kidrecursive/idad/blob/main/docs/QUICKSTART.md">Quick Start</a> · 
-        <a href="https://github.com/kidrecursive/idad/blob/main/LICENSE">MIT License</a>
-      </p>
-      <p style="margin-top: 16px; color: var(--text-dim);">
-        <em>"Hi Hungry, I'm IDAD" — Issue Driven Agentic Development</em>
-      </p>
-    </footer>
-  </div>
-</body>
+        <p>Repository permissions required:</p>
+        <table>
+          <tr>
+            <th>Permission</th>
+            <th>Access</th>
+          </tr>
+          <tr>
+            <td>Contents</td>
+            <td>Read and Write</td>
+          </tr>
+          <tr>
+            <td>Issues</td>
+            <td>Read and Write</td>
+          </tr>
+          <tr>
+            <td>Pull requests</td>
+            <td>Read and Write</td>
+          </tr>
+          <tr>
+            <td>Actions</td>
+            <td>Read and Write</td>
+          </tr>
+          <tr>
+            <td>Workflows</td>
+            <td>Read and Write</td>
+          </tr>
+        </table>
+
+        <h3>2. Generate Private Key &amp; Install</h3>
+        <p>
+          On the app's settings page, generate a private key and save the
+          <code>.pem</code> file. Then install the app on your repository.
+        </p>
+
+        <h3>3. Add Secrets</h3>
+        <pre><code><span class="cm"># Get your App ID from the app's settings page</span>
+gh secret set IDAD_APP_ID
+
+<span class="cm"># Add the private key from your .pem file</span>
+gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
+
+<span class="cm"># Add your AI CLI API key (one of these)</span>
+gh secret set CURSOR_API_KEY      <span class="cm"># For Cursor Agent</span>
+gh secret set ANTHROPIC_API_KEY   <span class="cm"># For Claude Code</span></code></pre>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Try It</h2>
+        <pre><code><span class="cm"># Create your first automated issue</span>
+gh issue create \
+  <span class="fl">--title</span> <span class="st">"Add hello world feature"</span> \
+  <span class="fl">--label</span> <span class="st">"idad:auto"</span> \
+  <span class="fl">--body</span> <span class="st">"Create a simple hello world function with tests."</span>
+
+<span class="cm"># Watch the agents work</span>
+gh run list <span class="fl">--workflow</span>=idad.yml <span class="fl">--limit</span> 5</code></pre>
+
+        <p>
+          Within ~8 minutes, you'll have a ready-to-merge PR with code, tests,
+          and updated documentation.
+        </p>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Agents</h2>
+        <table>
+          <tr>
+            <th>Agent</th>
+            <th>Purpose</th>
+            <th>Model</th>
+          </tr>
+          <tr>
+            <td>Issue Review</td>
+            <td>Refine and classify issues</td>
+            <td>Sonnet</td>
+          </tr>
+          <tr>
+            <td>Planner</td>
+            <td>Create implementation plans</td>
+            <td>Opus</td>
+          </tr>
+          <tr>
+            <td>Implementer</td>
+            <td>Write code and tests</td>
+            <td>Sonnet</td>
+          </tr>
+          <tr>
+            <td>Security Scanner</td>
+            <td>Check for vulnerabilities</td>
+            <td>Sonnet</td>
+          </tr>
+          <tr>
+            <td>Reviewer</td>
+            <td>Perform code review</td>
+            <td>Sonnet</td>
+          </tr>
+          <tr>
+            <td>Documenter</td>
+            <td>Update documentation</td>
+            <td>Sonnet</td>
+          </tr>
+          <tr>
+            <td>IDAD</td>
+            <td>Self-improvement</td>
+            <td>Opus</td>
+          </tr>
+        </table>
+
+        <p>Configure models via repository variables:</p>
+        <pre><code><span class="cm"># For Cursor Agent</span>
+gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="st">"opus-4.5"</span>
+gh variable set IDAD_MODEL_IMPLEMENTER <span class="fl">--body</span> <span class="st">"sonnet-4.5"</span>
+
+<span class="cm"># For Claude Code</span>
+gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="st">"claude-opus-4-20250514"</span></code></pre>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Labels</h2>
+        <p>Add <code>idad:auto</code> to any issue to enable automation.</p>
+        <table>
+          <tr>
+            <th>Label</th>
+            <th>Purpose</th>
+          </tr>
+          <tr>
+            <td><code>idad:auto</code></td>
+            <td>Enable automation (required)</td>
+          </tr>
+          <tr>
+            <td><code>type:issue</code></td>
+            <td>Standard feature</td>
+          </tr>
+          <tr>
+            <td><code>type:bug</code></td>
+            <td>Bug fix</td>
+          </tr>
+          <tr>
+            <td><code>type:epic</code></td>
+            <td>Large feature (creates sub-issues)</td>
+          </tr>
+          <tr>
+            <td><code>state:plan-review</code></td>
+            <td>Waiting for plan approval</td>
+          </tr>
+          <tr>
+            <td><code>needs-clarification</code></td>
+            <td>Waiting for human input</td>
+          </tr>
+          <tr>
+            <td><code>needs-changes</code></td>
+            <td>Code changes requested</td>
+          </tr>
+        </table>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Manual Triggers</h2>
+        <pre><code><span class="cm"># Trigger specific agent</span>
+gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"planner"</span> <span class="fl">-f</span> issue=<span class="st">"123"</span>
+
+<span class="cm"># Re-run implementer on existing PR</span>
+gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"implementer"</span> <span class="fl">-f</span> issue=<span class="st">"123"</span> <span class="fl">-f</span> pr=<span class="st">"456"</span>
+
+<span class="cm"># Trigger security scan</span>
+gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"security-scanner"</span> <span class="fl">-f</span> pr=<span class="st">"456"</span></code></pre>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Security</h2>
+        <ul>
+          <li>
+            <strong>GitHub App:</strong> Scoped to specific repositories only
+          </li>
+          <li>
+            <strong>Private Key:</strong> Stored securely as repository secret
+          </li>
+          <li>
+            <strong>Installation Tokens:</strong> Auto-generated, short-lived (1
+            hour)
+          </li>
+          <li>
+            <strong>Security Scanner:</strong> Checks for vulnerabilities before
+            review
+          </li>
+          <li>
+            <strong>Opt-in Only:</strong> Automation requires explicit
+            <code>idad:auto</code> label
+          </li>
+          <li>
+            <strong>Bot Identity:</strong> All actions clearly attributed to
+            agent emails
+          </li>
+        </ul>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Documentation</h2>
+        <ul>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/QUICKSTART.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Quick Start</a
+            >
+            — Get running in 5 minutes
+          </li>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/INSTALLATION.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Installation</a
+            >
+            — Detailed setup guide
+          </li>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/WORKFLOW.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Workflow Guide</a
+            >
+            — Complete workflow walkthrough
+          </li>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/AGENTS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Agent Reference</a
+            >
+            — All agents documented
+          </li>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/TROUBLESHOOTING.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Troubleshooting</a
+            >
+            — Problem solving
+          </li>
+          <li>
+            <a
+              href="https://github.com/kidrecursive/idad/blob/main/docs/OPERATIONS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Operations</a
+            >
+            — Maintenance and management
+          </li>
+        </ul>
+      </section>
+
+      <hr />
+
+      <footer>
+        <p>
+          <strong>Created with ❤️ by AI agents, for human developers</strong>
+        </p>
+        <p>
+          <a
+            href="https://github.com/kidrecursive/idad"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          ·
+          <a
+            href="https://github.com/kidrecursive/idad/blob/main/LICENSE"
+            target="_blank"
+            rel="noopener noreferrer"
+            >MIT License</a
+          >
+        </p>
+        <blockquote>Have you tried turning it off and IDAD again?</blockquote>
+      </footer>
+    </main>
+
+    <script>
+      document.querySelectorAll("pre.install").forEach((pre) => {
+        const btn = document.createElement("button");
+        btn.className = "copy-btn";
+        btn.textContent = "copy";
+        btn.onclick = () => {
+          navigator.clipboard.writeText(pre.querySelector("code").textContent);
+          btn.textContent = "copied!";
+          setTimeout(() => (btn.textContent = "copy"), 2000);
+        };
+        pre.appendChild(btn);
+      });
+    </script>
+  </body>
 </html>
