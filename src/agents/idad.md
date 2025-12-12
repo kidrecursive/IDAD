@@ -56,7 +56,102 @@ PR_DIFF=$(gh pr diff $PR_NUMBER)
 
 Analyze the changes for patterns that suggest IDAD system needs updates:
 
-#### A. Agent Definition Evolution
+#### A. CI Workflow Creation/Enhancement (Primary Responsibility)
+
+**Your primary responsibility is to ensure the project has appropriate CI.**
+
+First, check if any CI workflow exists:
+
+```bash
+# Check for existing CI workflows
+CI_EXISTS=false
+CI_FILE=""
+
+# Check common CI file locations
+for ci_path in ".github/workflows/ci.yml" ".github/workflows/test.yml" ".github/workflows/tests.yml" ".github/workflows/build.yml"; do
+  if [ -f "$ci_path" ]; then
+    CI_EXISTS=true
+    CI_FILE="$ci_path"
+    echo "✅ Found existing CI: $ci_path"
+    break
+  fi
+done
+
+# Also check for any workflow that runs tests
+if [ "$CI_EXISTS" = "false" ]; then
+  for workflow in .github/workflows/*.yml; do
+    if [ -f "$workflow" ] && grep -qE "(npm test|yarn test|pytest|cargo test|go test|mvn test|gradle test)" "$workflow" 2>/dev/null; then
+      CI_EXISTS=true
+      CI_FILE="$workflow"
+      echo "✅ Found workflow with tests: $workflow"
+      break
+    fi
+  done
+fi
+
+if [ "$CI_EXISTS" = "false" ]; then
+  echo "⚠️  No CI workflow found - will create one based on project structure"
+  NEEDS_CI_CREATION=true
+else
+  echo "CI exists at: $CI_FILE"
+  NEEDS_CI_CREATION=false
+fi
+```
+
+**If NO CI exists**, analyze the project to create an appropriate workflow:
+
+```bash
+if [ "$NEEDS_CI_CREATION" = "true" ]; then
+  # Detect project type and testing framework
+  PROJECT_TYPE=""
+  TEST_COMMAND=""
+  SETUP_STEPS=""
+  
+  # Node.js / JavaScript / TypeScript
+  if [ -f "package.json" ]; then
+    PROJECT_TYPE="node"
+    if grep -q '"test"' package.json; then
+      TEST_COMMAND="npm test"
+    fi
+    SETUP_STEPS="- uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci"
+  fi
+  
+  # Python
+  if [ -f "requirements.txt" ] || [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+    PROJECT_TYPE="python"
+    TEST_COMMAND="pytest"
+    SETUP_STEPS="- uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt 2>/dev/null || pip install -e . 2>/dev/null || pip install pytest"
+  fi
+  
+  # Go
+  if [ -f "go.mod" ]; then
+    PROJECT_TYPE="go"
+    TEST_COMMAND="go test ./..."
+    SETUP_STEPS="- uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'"
+  fi
+  
+  # Rust
+  if [ -f "Cargo.toml" ]; then
+    PROJECT_TYPE="rust"
+    TEST_COMMAND="cargo test"
+    SETUP_STEPS="- uses: dtolnay/rust-toolchain@stable"
+  fi
+  
+  echo "Detected project type: $PROJECT_TYPE"
+  echo "Test command: $TEST_COMMAND"
+fi
+```
+
+#### B. Agent Definition Evolution
 
 Check if agent definitions should be updated based on project patterns:
 
@@ -200,11 +295,27 @@ Based on analysis, decide if an improvement PR is warranted:
 ```bash
 IMPROVEMENTS_NEEDED=false
 IMPROVEMENT_DESCRIPTION=""
+IMPROVEMENT_TYPE=""
 
-# If new languages detected
-if [ -n "$NEW_LANGS" ]; then
+# Priority 1: CI workflow creation (if no CI exists)
+if [ "$NEEDS_CI_CREATION" = "true" ] && [ -n "$PROJECT_TYPE" ]; then
+  IMPROVEMENTS_NEEDED=true
+  IMPROVEMENT_DESCRIPTION="Create CI workflow for ${PROJECT_TYPE} project"
+  IMPROVEMENT_TYPE="ci-creation"
+fi
+
+# Priority 2: CI enhancement for new languages (if CI exists but doesn't support new tech)
+if [ "$IMPROVEMENTS_NEEDED" = "false" ] && [ -n "$NEW_LANGS" ]; then
   IMPROVEMENTS_NEEDED=true
   IMPROVEMENT_DESCRIPTION="Add test support for new languages"
+  IMPROVEMENT_TYPE="ci-enhancement"
+fi
+
+# Priority 3: Agent definition updates (if project patterns detected)
+if [ "$IMPROVEMENTS_NEEDED" = "false" ] && [ -n "$PROJECT_PATTERNS" ]; then
+  IMPROVEMENTS_NEEDED=true
+  IMPROVEMENT_DESCRIPTION="Update agent definitions with project patterns"
+  IMPROVEMENT_TYPE="agent-update"
 fi
 
 # Only create improvement PR if clearly beneficial
@@ -234,11 +345,82 @@ git checkout -b $IMPROVEMENT_BRANCH
 
 Make the necessary changes to IDAD system files:
 
-#### Update CI Workflow
+#### Create CI Workflow (if none exists)
+
+```bash
+if [ "$IMPROVEMENT_TYPE" = "ci-creation" ]; then
+  echo "Creating CI workflow for $PROJECT_TYPE project..."
+  
+  CI_FILE=".github/workflows/ci.yml"
+  mkdir -p .github/workflows
+  
+  cat > "$CI_FILE" << 'CIEOF'
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+CIEOF
+
+  # Add project-specific setup and test steps
+  case "$PROJECT_TYPE" in
+    node)
+      cat >> "$CI_FILE" << 'NODEEOF'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+NODEEOF
+      ;;
+    python)
+      cat >> "$CI_FILE" << 'PYEOF'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+          pip install pytest
+      - run: pytest
+PYEOF
+      ;;
+    go)
+      cat >> "$CI_FILE" << 'GOEOF'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - run: go test ./...
+GOEOF
+      ;;
+    rust)
+      cat >> "$CI_FILE" << 'RUSTEOF'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test
+RUSTEOF
+      ;;
+  esac
+  
+  echo "✅ Created $CI_FILE"
+fi
+```
+
+#### Update CI Workflow (if it exists but needs enhancement)
 
 ```bash
 # Example: Add Python test support
-if echo "$NEW_LANGS" | grep -q "Python"; then
+if [ "$IMPROVEMENT_TYPE" = "ci-enhancement" ] && echo "$NEW_LANGS" | grep -q "Python"; then
   echo "Adding Python test support to CI..."
   
   # Insert Python test commands in ci.yml

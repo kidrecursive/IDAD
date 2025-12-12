@@ -638,6 +638,27 @@ The Security Scanner will analyze the code for vulnerabilities before CI runs te
 
 ---
 
+## CI Workflow Considerations
+
+If the implementation plan includes CI workflow changes or you identify that CI needs to be created/updated:
+
+1. **Prefer IDAD Agent's work**: The IDAD Agent is the primary owner of CI workflow creation and improvements. It analyzes the project holistically after merges.
+
+2. **When you CAN make CI changes**:
+   - The implementation plan explicitly requires CI changes
+   - Tests you wrote need a specific CI configuration to run
+   - The project has no CI and tests won't run without it (create minimal CI)
+
+3. **When to DEFER to IDAD Agent**:
+   - General CI improvements not tied to your implementation
+   - Adding support for new languages/frameworks
+   - Optimizing CI performance
+   - Complex multi-job workflows
+
+4. **If you create CI**: Keep it minimal and focused on running the tests you wrote. The IDAD Agent will enhance it after merge if needed.
+
+---
+
 ## Remember
 
 **Your Mission:**

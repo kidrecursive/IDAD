@@ -84,10 +84,17 @@ if [ ! -f ".github/workflows/idad.yml" ]; then
 fi
 echo "✓ IDAD workflow present"
 
-if [ ! -f ".github/workflows/ci.yml" ]; then
-  echo "⚠ WARN: Missing CI workflow: .github/workflows/ci.yml (optional)"
-else
-  echo "✓ CI workflow present"
+# Check for any CI workflow (ci.yml is created by IDAD agent, not installer)
+CI_FOUND=false
+for ci_file in ".github/workflows/ci.yml" ".github/workflows/test.yml" ".github/workflows/tests.yml"; do
+  if [ -f "$ci_file" ]; then
+    echo "✓ CI workflow present: $ci_file"
+    CI_FOUND=true
+    break
+  fi
+done
+if [ "$CI_FOUND" = "false" ]; then
+  echo "ℹ INFO: No CI workflow yet (IDAD agent will create one after first PR merge)"
 fi
 
 echo ""

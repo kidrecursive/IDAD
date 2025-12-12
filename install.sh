@@ -191,10 +191,10 @@ echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/agents/ (8 agent definitions)"
 cp "$TEMP_DIR/idad/src/rules/system.$RULES_EXT" "$CONFIG_DIR/rules/"
 echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/rules/system.$RULES_EXT"
 
-# Copy workflow (CLI-specific)
+# Copy workflow (CLI-specific) - only idad.yml, CI is created by IDAD agent if needed
 cp "$TEMP_DIR/idad/src/workflows/$WORKFLOW_FILE" .github/workflows/idad.yml
-cp "$TEMP_DIR/idad/src/workflows/ci.yml" .github/workflows/
-echo -e "  ${GREEN}✓${NC} .github/workflows/ (idad.yml, ci.yml)"
+echo -e "  ${GREEN}✓${NC} .github/workflows/idad.yml"
+echo -e "  ${YELLOW}ℹ${NC}  CI workflow will be created by IDAD agent based on your project"
 
 # Copy CLI-specific extras
 if [ "$CLI_TYPE" = "cursor" ]; then
@@ -337,7 +337,7 @@ echo ""
 # Commit files
 echo -e "${BLUE}▶ Committing IDAD files...${NC}"
 
-git add "$CONFIG_DIR/" .github/workflows/idad.yml .github/workflows/ci.yml
+git add "$CONFIG_DIR/" .github/workflows/idad.yml
 if [ -f "CLAUDE.md" ]; then
   git add CLAUDE.md
 fi
@@ -354,7 +354,8 @@ Components:
 - $CONFIG_DIR/agents/ - 8 AI agent definitions
 - $CONFIG_DIR/rules/system.$RULES_EXT - System context
 - .github/workflows/idad.yml - Main workflow
-- .github/workflows/ci.yml - CI template"
+
+Note: CI workflow will be created by IDAD agent based on your project's needs."
 
   echo -e "  ${GREEN}✓${NC} Changes committed"
   

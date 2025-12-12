@@ -99,27 +99,27 @@ curl -fsSL https://...install.sh | bash -s -- --cli claude
 **Cursor Agent:**
 ```
 .cursor/
-├── agents/           # 8 agent definitions
+├── agents/           # 9 agent definitions
 ├── rules/
 │   └── system.mdc    # System context
 └── README.md
 
 .github/workflows/
-├── idad.yml          # Main workflow
-└── ci.yml            # CI template
+└── idad.yml          # Main workflow (CI created by IDAD agent when needed)
 ```
 
 **Claude Code:**
 ```
 .claude/
-├── agents/           # 8 agent definitions
+├── agents/           # 9 agent definitions
 └── rules/
     └── system.md     # System context
 
 .github/workflows/
-├── idad.yml          # Main workflow
-└── ci.yml            # CI template
+└── idad.yml          # Main workflow (CI created by IDAD agent when needed)
 ```
+
+**Note**: CI workflow is NOT installed by default. The IDAD agent analyzes your project after the first PR merges and creates an appropriate CI workflow based on your project's languages and testing frameworks. This allows seamless integration with existing repositories that already have CI.
 
 ---
 
@@ -238,15 +238,15 @@ gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
 ```bash
 # For Cursor
 ls .cursor/agents/
-# Should show 8 .md files
+# Should show 9 .md files
 
 # For Claude
 ls .claude/agents/
-# Should show 8 .md files
+# Should show 9 .md files
 
 # Check workflow
 ls .github/workflows/
-# Should show: idad.yml, ci.yml
+# Should show: idad.yml (ci.yml created later by IDAD agent)
 ```
 
 ### 2. Check Secrets
@@ -360,7 +360,8 @@ To remove IDAD:
 rm -rf .cursor        # Cursor Agent
 rm -rf .claude        # Claude Code
 rm .github/workflows/idad.yml
-rm .github/workflows/ci.yml
+# Note: If IDAD created a ci.yml, you may want to keep it or remove it:
+# rm .github/workflows/ci.yml
 
 # 2. Remove secrets
 gh secret delete IDAD_APP_ID

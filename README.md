@@ -46,10 +46,12 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad-cursor/main/insta
 
 The installer will:
 - Ask which AI CLI you want to use (Cursor or Claude Code)
-- Download IDAD agent definitions and workflows
+- Download IDAD agent definitions and workflow
 - Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
 - Commit the files to your repo
+
+**Note**: CI workflow is NOT installed by default. The IDAD agent will automatically create an appropriate CI workflow based on your project's languages and testing frameworks after the first PR merges.
 
 ### CLI Options
 
@@ -238,8 +240,7 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 └── README.md
 
 .github/workflows/
-├── idad.yml
-└── ci.yml
+└── idad.yml                    # CI created by IDAD agent when needed
 ```
 
 ### Claude Code Installation
@@ -260,8 +261,7 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
     └── system.md
 
 .github/workflows/
-├── idad.yml
-└── ci.yml
+└── idad.yml                    # CI created by IDAD agent when needed
 ```
 
 ---
