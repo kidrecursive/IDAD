@@ -6,14 +6,14 @@
     <title>IDAD - Issue Driven Agentic Development</title>
     <meta
       name="description"
-      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+      content="Create issues, get PRs automatically. AI agents handle development with human review gates at plan and PR stages."
     />
     <link rel="icon" href="https://github.com/kidrecursive.png" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="IDAD - Issue Driven Agentic Development" />
     <meta
       property="og:description"
-      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+      content="Create issues, get PRs automatically. AI agents handle development with human review gates at plan and PR stages."
     />
     <meta property="og:image" content="https://github.com/kidrecursive.png" />
     <meta property="og:url" content="https://idad.io" />
@@ -21,7 +21,7 @@
     <meta name="twitter:title" content="IDAD - Issue Driven Agentic Development" />
     <meta
       name="twitter:description"
-      content="Create issues, get PRs automatically. AI agents handle your entire development workflow."
+      content="Create issues, get PRs automatically. AI agents handle development with human review gates at plan and PR stages."
     />
     <meta name="twitter:image" content="https://github.com/kidrecursive.png" />
     <style>
@@ -197,8 +197,8 @@
           />
         </div>
         <p>
-          Create issues, get PRs automatically. AI agents handle your entire
-          development workflow. Supports both
+          Create issues, get PRs automatically. AI agents handle development
+          with human review gates at plan and PR stages. Supports both
           <a
             href="https://docs.cursor.com/agent/cli"
             target="_blank"
@@ -237,6 +237,11 @@
         <h2>Why IDAD?</h2>
         <ul>
           <li>
+            <strong>Two human gates</strong> — You approve the plan before
+            coding starts, then review the final PR before merge. Agents handle
+            the work between gates; you stay in control at decision points.
+          </li>
+          <li>
             <strong>Zero to PR asynchronously</strong> — From issue to
             ready-to-merge pull request. No more context switching between
             planning, coding, testing, and reviewing.
@@ -246,9 +251,9 @@
             analyzes changes and updates itself to work better with your stack.
           </li>
           <li>
-            <strong>Opt-in automation</strong> — Full control with the
-            <code>idad:auto</code> label. Only automate what you want. Pause
-            anytime.
+            <strong>Opt-in automation</strong> — Automation only runs on issues
+            with the <code>idad:auto</code> label. Remove the label to pause.
+            Add comments to redirect.
           </li>
           <li>
             <strong>Security first</strong> — Dedicated Security Scanner agent
@@ -531,6 +536,10 @@ gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"secu
       <section>
         <h2>Security</h2>
         <ul>
+          <li>
+            <strong>Human Review Gates:</strong> Plan approval and PR review
+            required before any code merges
+          </li>
           <li>
             <strong>GitHub App:</strong> Scoped to specific repositories only
           </li>
