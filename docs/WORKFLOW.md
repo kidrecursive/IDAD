@@ -45,20 +45,24 @@ IDAD is a fully automated, self-improving GitHub-based agentic coding system whe
 │                                                               │
 │  2. Planner Agent ────────► Creates Implementation Plan      │
 │                             Adds to issue body                │
-│                             Sets state:implementing           │
+│                             Sets state:plan-review            │
 │                                                               │
-│  3. Implementer Agent ───► Writes Code & Tests               │
+│  3. 👤 Human Plan Review ─► Reviews plan, provides feedback  │
+│                             Approves or requests changes      │
+│                             (Comment triggers Planner)        │
+│                                                               │
+│  4. Implementer Agent ───► Writes Code & Tests               │
 │                             Creates PR                        │
 │                             Pushes commits                    │
 │                                                               │
-│  4. CI Workflow ──────────► Runs Tests                       │
+│  5. CI Workflow ──────────► Runs Tests                       │
 │                             Validates Build                   │
 │                                                               │
-│  5. Reviewer Agent ───────► Code Review                      │
+│  6. Reviewer Agent ───────► Code Review                      │
 │                             Approves or Requests Changes      │
 │                             Sets state:robot-docs             │
 │                                                               │
-│  6. Documenter Agent ─────► Updates Documentation            │
+│  7. Documenter Agent ─────► Updates Documentation            │
 │                             Finalizes PR                      │
 │                             Sets state:human-review           │
 │                                                               │
@@ -147,8 +151,10 @@ Add user authentication feature
 - Analyzes issue requirements
 - Creates step-by-step implementation plan
 - Determines appropriate branch name
+- Creates feature branch
 - Updates issue body with plan
-- Sets `state:implementing`
+- Sets `state:plan-review`
+- **Waits for human approval**
 
 **Timeline**: 1-2 minutes
 
@@ -156,7 +162,8 @@ Add user authentication feature
 - Implementation plan added to issue body
 - Task breakdown with subtasks
 - Branch name specified
-- `state:implementing` label
+- `state:plan-review` label
+- Comment asking for your review
 
 **Plan Format**:
 ```markdown
@@ -180,7 +187,39 @@ Add user authentication feature
 feat/issue-123-description
 ```
 
-**Next Step**: Automatically triggers Implementer Agent
+**Next Step**: Waits for human feedback (see Step 3.5)
+
+---
+
+### Step 3.5: Human Plan Review (NEW!)
+
+**Purpose**: Review and approve the implementation plan before coding begins
+
+**Your Actions**:
+- Review the implementation plan in the issue body
+- Check that files, steps, and approach make sense
+- Either:
+  - **Approve**: Comment "looks good", "proceed", "LGTM", etc.
+  - **Request changes**: Describe what you want changed
+
+**How to Respond**:
+```bash
+# Approve the plan
+gh issue comment 123 --body "Looks good, let's proceed!"
+
+# Request changes
+gh issue comment 123 --body "Can we also add error handling for edge cases?"
+```
+
+**What Happens**:
+- Your comment triggers the Planner agent again
+- Planner reads your feedback and either:
+  - Updates the plan (if changes requested) → stays in `state:plan-review`
+  - Triggers Implementer (if approved) → changes to `state:implementing`
+
+**Timeline**: Depends on you!
+
+**Next Step**: After approval, Planner triggers Implementer Agent
 
 ---
 
@@ -382,9 +421,9 @@ Author: Documenter Agent <documenter@agents.local>
 - **Duration**: 30-60s
 
 ### Planner Agent  
-- **Trigger**: Issue marked `state:ready`
-- **Input**: Refined issue requirements
-- **Output**: Implementation plan, state:implementing
+- **Trigger**: Issue marked `state:ready` OR comment on `state:plan-review` issue
+- **Input**: Refined issue requirements OR human feedback on plan
+- **Output**: Implementation plan, state:plan-review (or state:implementing after approval)
 - **Duration**: 1-2 minutes
 
 ### Implementer Agent
@@ -427,6 +466,7 @@ Author: Documenter Agent <documenter@agents.local>
 - `state:issue-review` - Under issue review
 - `state:ready` - Ready for planning
 - `state:planning` - Being planned
+- `state:plan-review` - **Waiting for human plan approval**
 - `state:implementing` - Being implemented
 - `state:robot-review` - Under code review
 - `state:robot-docs` - Documentation in progress
@@ -450,10 +490,17 @@ Author: Documenter Agent <documenter@agents.local>
       ▼
   state:ready
       │
-      │ (Planner Agent)
+      │ (Planner Agent creates plan)
       ▼
- state:planning
+ state:plan-review ◄───────────────────┐
+      │                                 │
+      │ (Human reviews plan)            │ (changes requested)
+      │                                 │
+      ├─ Approved ─────────────────────►│
+      │                                 │
+      └─ Changes Requested ─────────────┘
       │
+      │ (Planner triggers Implementer)
       ▼
 state:implementing
       │
@@ -479,9 +526,10 @@ state:robot-review
 ## Timeline Expectations
 
 ### Full Pipeline (Happy Path)
-- **Total**: ~6-10 minutes
+- **Total**: ~6-10 minutes + plan review time
 - Issue Review: 30-60s
 - Planner: 1-2 min
+- **Plan Review: depends on you!** 👤
 - Implementer: 1-3 min
 - CI: < 1 min
 - Reviewer: 30-90s

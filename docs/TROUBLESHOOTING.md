@@ -158,6 +158,48 @@ gh workflow run idad.yml \
 
 ---
 
+**Problem**: Issue stuck in `state:plan-review`
+
+**Debug**:
+```bash
+gh issue view <issue-number> --json labels
+gh issue view <issue-number> --comments | tail -20
+```
+
+**Common Causes**:
+- Waiting for your approval (this is expected!)
+- Your approval comment wasn't detected
+- Workflow not triggered by your comment
+
+**Solution**:
+1. **Check if it's waiting for you**: If you see "Human Review Required" in the comments, comment with approval:
+   ```bash
+   gh issue comment <issue-number> --body "Looks good, proceed!"
+   ```
+
+2. **If already commented**: Manually trigger Planner to re-process:
+   ```bash
+   gh workflow run idad.yml \
+     --ref main \
+     -f agent="planner" \
+     -f issue="<number>" \
+     -f pr=""
+   ```
+
+3. **Skip plan review** (force proceed): Update labels manually:
+   ```bash
+   gh issue edit <issue-number> \
+     --remove-label "state:plan-review" \
+     --add-label "state:implementing"
+   gh workflow run idad.yml \
+     --ref main \
+     -f agent="implementer" \
+     -f issue="<number>" \
+     -f pr=""
+   ```
+
+---
+
 ### Implementer Agent
 
 **Problem**: No PR created
@@ -482,6 +524,7 @@ gh issue edit <issue-number> \
   --remove-label "state:issue-review" \
   --remove-label "state:ready" \
   --remove-label "state:planning" \
+  --remove-label "state:plan-review" \
   --remove-label "state:implementing" \
   --remove-label "state:robot-review" \
   --remove-label "state:robot-docs" \

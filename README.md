@@ -17,6 +17,8 @@ You create an issue with idad:auto label
          ↓
 🤖 Planner Agent → creates implementation plan
          ↓
+👤 You review the plan → approve or request changes
+         ↓
 🤖 Implementer Agent → writes code and tests
          ↓
 🔒 Security Scanner → checks for vulnerabilities
@@ -192,6 +194,7 @@ Add `idad:auto` to any issue to enable automation.
 | `type:issue` | Standard feature |
 | `type:bug` | Bug fix |
 | `type:epic` | Large feature (creates sub-issues) |
+| `state:plan-review` | **Waiting for plan approval** |
 | `needs-clarification` | Waiting for human input |
 | `needs-changes` | Code changes requested |
 

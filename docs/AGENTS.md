@@ -25,12 +25,14 @@ IDAD uses 7 specialized agents that collaborate to deliver features:
 | Agent | Purpose | Trigger | Duration |
 |-------|---------|---------|----------|
 | Issue Review | Refine & classify issues | Issue created | 30-60s |
-| Planner | Create implementation plan | state:ready | 1-2 min |
+| Planner | Create implementation plan | state:ready OR plan feedback | 1-2 min |
 | Implementer | Write code & tests | state:implementing | 1-3 min |
 | Reviewer | Code review | CI passes | 30-90s |
 | Documenter | Update docs | PR approved | 30-90s |
 | IDAD | System improvements | PR merged | 1-2 min |
 | Reporting | Generate metrics | Scheduled/manual | 2-4 min |
+
+**Note**: After Planner creates a plan, a **human review step** is required before Implementer runs.
 
 ---
 
@@ -106,21 +108,23 @@ gh workflow run idad.yml \
 ## Planner Agent
 
 ### Purpose
-Creates detailed implementation plans for issues.
+Creates detailed implementation plans for issues and handles human feedback on plans.
 
 ### Trigger
-- Condition: Issue has `state:ready` label
-- Modes: Issue mode or Epic mode
+- Condition: Issue has `state:ready` label (initial planning)
+- Condition: Comment on issue with `state:plan-review` label (plan review)
+- Modes: Issue mode, Plan Review mode, or Epic mode
 
 ### Inputs
 - Issue number
 - Issue requirements
 - Issue type
+- Human feedback (in Plan Review mode)
 
 ### Outputs
 - Implementation plan (added to issue body)
 - Branch name
-- State label (`state:implementing`)
+- State label (`state:plan-review` initially, `state:implementing` after approval)
 - Comment with agentlog
 
 ### Responsibilities
@@ -129,19 +133,30 @@ Creates detailed implementation plans for issues.
 - Determine files to create/modify
 - Suggest branch name
 - Break down into manageable tasks
+- **Handle human feedback on plans**
+- **Update plans when changes requested**
+- **Trigger Implementer only after human approval**
 
 ### Modes
 
 **Issue Mode** (default):
 - Creates single implementation plan
 - Adds plan to issue body
-- Triggers Implementer
+- Creates feature branch
+- Sets `state:plan-review`
+- **Waits for human approval**
+
+**Plan Review Mode** (new!):
+- Triggered when human comments on `state:plan-review` issue
+- Reads human feedback
+- If changes requested: Updates plan, stays in `state:plan-review`
+- If approved: Triggers Implementer, sets `state:implementing`
 
 **Epic Mode** (`type:epic`):
 - Creates multiple sub-issues
 - Each sub-issue gets own plan
 - Links sub-issues to parent
-- Each sub-issue follows normal workflow
+- Each sub-issue follows normal workflow (including plan review)
 
 ### Plan Format
 ```markdown
@@ -671,9 +686,9 @@ gh workflow run idad.yml \
 ### Chain Diagram
 
 ```
-Issue Review ──► Planner ──► Implementer ──► CI ──► Reviewer ──┬──► Documenter ──► [Human]
-                                                                │
-                                                                └──► Implementer (if changes needed)
+Issue Review ──► Planner ──► [Human Plan Review] ──► Implementer ──► CI ──► Reviewer ──┬──► Documenter ──► [Human PR Review]
+                    ↑               │                                                   │
+                    └───────────────┘ (if plan changes requested)                       └──► Implementer (if code changes needed)
 
 [Human Merge] ──► IDAD Agent (analyzes for improvements)
 ```

@@ -205,7 +205,7 @@ The installer creates these labels automatically:
 - `type:issue`, `type:epic`, `type:bug`, `type:documentation`, `type:question`, `type:infrastructure`
 
 **State labels:**
-- `state:issue-review`, `state:ready`, `state:planning`, `state:implementing`, `state:robot-review`, `state:robot-docs`, `state:human-review`
+- `state:issue-review`, `state:ready`, `state:planning`, `state:plan-review`, `state:implementing`, `state:robot-review`, `state:robot-docs`, `state:human-review`
 
 **Control labels:**
 - `idad:auto`, `needs-clarification`, `needs-changes`

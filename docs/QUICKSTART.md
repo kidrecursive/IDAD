@@ -128,7 +128,12 @@ Issue Review Agent (30-60s)
 Planner Agent (1-2 min)
     ├─ Creates implementation plan
     ├─ Breaks down into steps
-    └─ Suggests branch name
+    ├─ Creates feature branch
+    └─ Waits for your approval
+    ↓
+👤 You Review the Plan
+    ├─ Comment "looks good" to approve
+    └─ Or describe changes you want
     ↓
 Implementer Agent (1-3 min)
     ├─ Writes code
@@ -154,9 +159,12 @@ Ready for Your Review! 🎉
 
 ### Your Turn
 
-1. **Review the PR** - Check the code and docs
-2. **Merge it** - When you're happy with it
-3. **Done!** - Feature is live
+1. **Review the plan** - Check the implementation approach
+2. **Approve the plan** - Comment "looks good" or similar
+3. **Wait for code** - Implementer writes the code
+4. **Review the PR** - Check the code and docs
+5. **Merge it** - When you're happy with it
+6. **Done!** - Feature is live
 
 ---
 
