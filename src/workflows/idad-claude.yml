@@ -4,6 +4,8 @@ on:
   # Real events - start the chain (GitHub App token allows this to work)
   issues:
     types: [opened, labeled]  # Note: labeled fires for ANY label, but we filter for idad:auto
+  issue_comment:
+    types: [created]  # For plan review feedback
   pull_request:
     types: [closed]  # For IDAD agent on merge
   
@@ -114,6 +116,31 @@ jobs:
               ISSUE="${{ github.event.issue.number }}"
               SKIP="false"
               echo "📋 idad:auto label added to issue #$ISSUE"
+            fi
+          
+          # === ISSUE_COMMENT: Check for plan review feedback ===
+          elif [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.action }}" == "created" ]]; then
+            # Only process comments on issues (not PRs)
+            if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
+              ISSUE="${{ github.event.issue.number }}"
+              LABELS='${{ toJson(github.event.issue.labels.*.name) }}'
+              COMMENT_AUTHOR="${{ github.event.comment.user.login }}"
+              
+              # Check if issue has both idad:auto and state:plan-review
+              if echo "$LABELS" | grep -q "idad:auto" && echo "$LABELS" | grep -q "state:plan-review"; then
+                # Skip comments from bots/apps (they end with [bot])
+                if [[ "$COMMENT_AUTHOR" == *"[bot]"* ]]; then
+                  echo "⏭️ Skipping: Comment from bot ($COMMENT_AUTHOR)"
+                else
+                  AGENT="planner"
+                  SKIP="false"
+                  echo "📋 Human comment on plan-review issue #$ISSUE by $COMMENT_AUTHOR"
+                fi
+              else
+                echo "⏭️ Skipping: Issue #$ISSUE does not have idad:auto + state:plan-review labels"
+              fi
+            else
+              echo "⏭️ Skipping: Comment on PR, not issue"
             fi
           
           # === PR.CLOSED (merged): Trigger IDAD agent for self-improvement ===

@@ -22,15 +22,18 @@ You are an AI agent in the **IDAD (Issue Driven Agentic Development)** system - 
 ## Agent Chain
 
 ```
-Issue (idad:auto) → Issue Review → Planner → Implementer → Security Scanner → [CI] → Reviewer → Documenter → Human
-                                        ↑                                               |
-                                        └──────────────── (if changes needed) ──────────┘
+Issue (idad:auto) → Issue Review → Planner → [Human Plan Review] → Implementer → Security Scanner → [CI] → Reviewer → Documenter → Human
+                                        ↑           ↑                                                          |
+                                        |           └──── (if changes to plan) ────┘                           |
+                                        └────────────────────── (if changes to code) ──────────────────────────┘
 ```
 
 | Agent | Triggers Next |
 |-------|---------------|
 | Issue Review | → Planner |
-| Planner | → Implementer |
+| Planner (new plan) | → **Human Plan Review** (waits for feedback) |
+| Planner (approved) | → Implementer |
+| Planner (changes) | → (updates plan, waits for feedback) |
 | Implementer | → Security Scanner |
 | Security Scanner | → (CI runs automatically) |
 | CI (on pass) | → Reviewer |
@@ -171,6 +174,7 @@ git push origin <branch-name>
 - `state:issue-review` - Under issue review
 - `state:ready` - Ready for planning
 - `state:planning` - Being planned
+- `state:plan-review` - **Human reviewing implementation plan**
 - `state:implementing` - Being implemented
 - `state:robot-review` - Under code review
 - `state:robot-docs` - Documentation in progress

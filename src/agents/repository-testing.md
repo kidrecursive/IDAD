@@ -169,7 +169,7 @@ fi
 echo "✓ Repository: $REPO"
 
 # Check required labels
-REQUIRED_LABELS="idad:auto type:issue type:bug state:issue-review state:ready state:planning state:implementing state:robot-review state:human-review needs-clarification needs-changes"
+REQUIRED_LABELS="idad:auto type:issue type:bug state:issue-review state:ready state:planning state:plan-review state:implementing state:robot-review state:human-review needs-clarification needs-changes"
 MISSING_LABELS=""
 
 EXISTING_LABELS=$(gh label list --repo "$REPO" --json name -q '.[].name' 2>/dev/null)
@@ -442,24 +442,82 @@ gh run list --workflow=idad.yml --limit 5
 - Issue gets `state:planning` label (briefly)
 - Implementation plan comment added to issue
 - Feature branch created: `feat/issue-{NUM}-*`
-- Implementer agent triggered
+- Issue gets `state:plan-review` label
+- **Planner waits for human feedback** (does NOT trigger Implementer yet)
 
 **Verify:**
 ```bash
 # Check for implementation plan in comments
 gh issue view $ISSUE_NUM --comments | grep -A 50 "Implementation Plan"
 
+# Check issue has state:plan-review label
+gh issue view $ISSUE_NUM --json labels -q '.labels[].name' | grep "state:plan-review"
+
 # Check for branch
 git fetch origin
 git branch -r | grep "feat/issue-$ISSUE_NUM"
 ```
 
-### Step 4: Monitor Implementer Agent
+### Step 4: Human Gate - Review and Approve Plan
+
+**🛑 HUMAN ACTION REQUIRED**
+
+The Planner has created an implementation plan and is waiting for your approval. You need to:
+
+1. **Review the plan** in the issue:
+   ```bash
+   # View the issue with the plan
+   gh issue view $ISSUE_NUM
+   
+   # Or just view comments
+   gh issue view $ISSUE_NUM --comments | tail -100
+   ```
+
+2. **Provide feedback OR approve**:
+
+   **Option A: Request changes to the plan**
+   ```bash
+   # If you want changes, comment with your feedback
+   gh issue comment $ISSUE_NUM --body "Please also add error handling for edge cases where the name contains special characters."
+   ```
+   
+   The Planner will run again, update the plan, and wait for your feedback again.
+
+   **Option B: Approve the plan to proceed**
+   ```bash
+   # If the plan looks good, approve it
+   gh issue comment $ISSUE_NUM --body "Looks good, let's proceed with implementation!"
+   ```
+   
+   The Planner will transition the issue to `state:implementing` and trigger the Implementer.
+
+3. **Wait for Planner to process your feedback**:
+   ```bash
+   # Watch for the workflow to run
+   gh run list --workflow=idad.yml --limit 5
+   ```
+
+**Expected outcome after approval:**
+- Planner posts confirmation comment
+- Issue label changes from `state:plan-review` to `state:implementing`
+- Implementer agent is triggered
+
+**Verify:**
+```bash
+# Check labels changed
+gh issue view $ISSUE_NUM --json labels -q '.labels[].name'
+# Should show state:implementing, NOT state:plan-review
+
+# Check for Planner's approval confirmation
+gh issue view $ISSUE_NUM --comments | grep -A 10 "Plan Approved"
+```
+
+### Step 5: Monitor Implementer Agent
 
 The Implementer creates the actual code and PR:
 
 ```bash
-echo "=== Step 4: Implementer Agent ==="
+echo "=== Step 5: Implementer Agent ==="
 echo "Waiting for Implementer workflow..."
 
 gh run list --workflow=idad.yml --limit 5
@@ -484,12 +542,12 @@ echo "PR created: #$PR_NUM"
 gh pr view $PR_NUM
 ```
 
-### Step 5: Monitor Security Scanner
+### Step 6: Monitor Security Scanner
 
 Security Scanner checks the PR for vulnerabilities:
 
 ```bash
-echo "=== Step 5: Security Scanner ==="
+echo "=== Step 6: Security Scanner ==="
 echo "Waiting for Security Scanner workflow..."
 
 gh run list --workflow=idad.yml --limit 5
@@ -506,12 +564,12 @@ gh run list --workflow=idad.yml --limit 5
 gh pr view $PR_NUM --comments | grep -A 20 "Security"
 ```
 
-### Step 6: Wait for CI
+### Step 7: Wait for CI
 
 CI runs automatically when PR is created:
 
 ```bash
-echo "=== Step 6: CI ==="
+echo "=== Step 7: CI ==="
 echo "Waiting for CI workflow..."
 
 # Watch CI status
@@ -523,12 +581,12 @@ gh pr checks $PR_NUM --watch
 - Tests pass (if Implementer wrote correct tests)
 - Reviewer agent triggered after CI passes
 
-### Step 7: Monitor Reviewer Agent
+### Step 8: Monitor Reviewer Agent
 
 Reviewer performs code review:
 
 ```bash
-echo "=== Step 7: Reviewer Agent ==="
+echo "=== Step 8: Reviewer Agent ==="
 echo "Waiting for Reviewer workflow..."
 
 gh run list --workflow=idad.yml --limit 5
@@ -549,12 +607,12 @@ gh pr view $PR_NUM --json reviews -q '.reviews[].state'
 gh pr view $PR_NUM --comments | tail -50
 ```
 
-### Step 8: Monitor Documenter Agent
+### Step 9: Monitor Documenter Agent
 
 Documenter updates documentation if needed:
 
 ```bash
-echo "=== Step 8: Documenter Agent ==="
+echo "=== Step 9: Documenter Agent ==="
 echo "Waiting for Documenter workflow..."
 
 gh run list --workflow=idad.yml --limit 5
@@ -573,7 +631,7 @@ gh pr view $PR_NUM --json labels -q '.labels[].name'
 # Should include state:human-review
 ```
 
-### Step 9: Human Gate - Review and Merge
+### Step 10: Human Gate - Review and Merge PR
 
 **🛑 HUMAN ACTION REQUIRED**
 
@@ -598,19 +656,19 @@ At this point, you need to:
    gh pr merge $PR_NUM --squash --delete-branch
    ```
 
-### Step 10: Monitor IDAD Self-Improvement Agent (Optional)
+### Step 11: Monitor IDAD Self-Improvement Agent (Optional)
 
 After merge, the IDAD agent may run to analyze the completed work:
 
 ```bash
-echo "=== Step 10: IDAD Agent (Post-Merge) ==="
+echo "=== Step 11: IDAD Agent (Post-Merge) ==="
 echo "Watching for IDAD self-improvement workflow..."
 
 # This triggers on PR merge with idad:auto label
 gh run list --workflow=idad.yml --limit 5
 ```
 
-### Step 11: Verify Completion & Clean Up
+### Step 12: Verify Completion & Clean Up
 
 **Verify the test completed successfully:**
 
@@ -650,15 +708,16 @@ After completing all steps, you should have verified:
 |------|-------|------------------|
 | 1 | - | Test issue created |
 | 2 | Issue Review | Issue classified, labels added |
-| 3 | Planner | Implementation plan created |
-| 4 | Implementer | Code written, PR created |
-| 5 | Security Scanner | Security analysis complete |
-| 6 | CI | Tests pass |
-| 7 | Reviewer | Code review complete |
-| 8 | Documenter | Docs updated, ready for human |
-| 9 | **Human** | PR approved and merged |
-| 10 | IDAD | Self-improvement analysis |
-| 11 | - | Issue closed, code merged |
+| 3 | Planner | Implementation plan created, waiting for approval |
+| 4 | **Human** | Review and approve/modify plan |
+| 5 | Implementer | Code written, PR created |
+| 6 | Security Scanner | Security analysis complete |
+| 7 | CI | Tests pass |
+| 8 | Reviewer | Code review complete |
+| 9 | Documenter | Docs updated, ready for human |
+| 10 | **Human** | PR approved and merged |
+| 11 | IDAD | Self-improvement analysis |
+| 12 | - | Issue closed, code merged |
 
 **Report results:**
 

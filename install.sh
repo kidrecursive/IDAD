@@ -308,11 +308,12 @@ echo -e "  ${GREEN}✓${NC} Type labels (6)"
 gh label create "state:issue-review" --repo "$REPO" --color "bfdadc" --description "Under issue review" --force 2>/dev/null || true
 gh label create "state:ready" --repo "$REPO" --color "0e8a16" --description "Ready for planning" --force 2>/dev/null || true
 gh label create "state:planning" --repo "$REPO" --color "fbca04" --description "Being planned" --force 2>/dev/null || true
+gh label create "state:plan-review" --repo "$REPO" --color "c2e0c6" --description "Human reviewing plan" --force 2>/dev/null || true
 gh label create "state:implementing" --repo "$REPO" --color "d93f0b" --description "Being implemented" --force 2>/dev/null || true
 gh label create "state:robot-review" --repo "$REPO" --color "5319e7" --description "Under robot code review" --force 2>/dev/null || true
 gh label create "state:robot-docs" --repo "$REPO" --color "1d76db" --description "Documenter working" --force 2>/dev/null || true
 gh label create "state:human-review" --repo "$REPO" --color "e99695" --description "Ready for human review" --force 2>/dev/null || true
-echo -e "  ${GREEN}✓${NC} State labels (7)"
+echo -e "  ${GREEN}✓${NC} State labels (8)"
 
 # Control labels
 gh label create "idad:auto" --repo "$REPO" --color "c5def5" --description "Enable IDAD automation (opt-in)" --force 2>/dev/null || true
