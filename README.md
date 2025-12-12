@@ -64,6 +64,32 @@ curl -fsSL https://...install.sh | bash -s -- --cli cursor
 curl -fsSL https://...install.sh | bash -s -- --cli claude
 ```
 
+### Verify Installation
+
+After installation, run the repository testing agent to verify everything is configured correctly:
+
+**Cursor:**
+```bash
+cursor-agent \
+  -f .cursor/rules/system.mdc \
+  -f .cursor/agents/repository-testing.md \
+  -p "Run the IDAD repository tests"
+```
+
+**Claude Code:**
+```bash
+claude \
+  --system-prompt "$(cat .claude/rules/system.md)" \
+  -p "Run the IDAD repository tests. $(cat .claude/agents/repository-testing.md)"
+```
+
+This verifies:
+- ✅ All agent files are present
+- ✅ Workflow is correctly configured
+- ✅ GitHub labels exist
+- ✅ Secrets are configured
+- ✅ Actions permissions are set
+
 ### Try It
 
 ```bash
@@ -200,7 +226,8 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 │   ├── reviewer.md
 │   ├── documenter.md
 │   ├── idad.md
-│   └── reporting.md
+│   ├── reporting.md
+│   └── repository-testing.md   # Post-install verification
 ├── rules/
 │   └── system.mdc
 └── README.md
@@ -222,7 +249,8 @@ gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
 │   ├── reviewer.md
 │   ├── documenter.md
 │   ├── idad.md
-│   └── reporting.md
+│   ├── reporting.md
+│   └── repository-testing.md   # Post-install verification
 └── rules/
     └── system.md
 
