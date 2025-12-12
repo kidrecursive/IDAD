@@ -323,67 +323,427 @@ echo ""
 echo "✅ Test 6 PASSED: Workflow trigger test"
 ```
 
-### Test 7: End-to-End Test (Optional)
+### Test 7: Full End-to-End Pipeline Test
 
-Create a test issue and verify the agent chain starts. **This creates a real issue.**
+This comprehensive test creates a real issue and monitors the entire IDAD agent chain from start to finish. It includes human gates where you'll need to take action.
 
-```bash
-echo ""
-echo "=== Test 7: End-to-End Test ==="
-echo "⚠ This test will create a real issue with idad:auto label."
-echo "⚠ Agents will run and may create branches/PRs."
-echo ""
+**⚠️ This test will:**
+- Create a real issue with `idad:auto` label
+- Trigger all agents in sequence
+- Create a real branch and PR
+- Require your approval at certain gates
 
-read -p "Run end-to-end test? (y/N): " CONFIRM
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-  echo "Skipped end-to-end test"
-else
-  REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null)
-  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-  
-  echo "Creating test issue..."
-  ISSUE_URL=$(gh issue create \
-    --repo "$REPO" \
-    --title "IDAD Test: Repository verification ($TIMESTAMP)" \
-    --label "idad:auto" \
-    --body "This is an automated test issue created by the repository-testing agent.
+## Your Responsibilities
 
-## Purpose
-Verify that the IDAD installation is working correctly.
+When prompted by this test, you are acting as the agent. You should:
 
-## Expected Behavior
-1. Issue Review agent should process this issue
-2. Add type label and refine description
-3. Transition to state:ready
-
-## Cleanup
-After verification, this issue can be closed.
+1. **Run the test setup commands** provided below
+2. **Monitor workflow runs** using the `gh` CLI
+3. **Wait for each agent** to complete before proceeding
+4. **Take action at human gates** (approve PR, merge PR)
+5. **Verify expected outcomes** at each step
+6. **Clean up** the test issue and PR when done
 
 ---
-*Created by repository-testing agent at $TIMESTAMP*" \
-    --json url -q '.url')
-  
-  if [ -n "$ISSUE_URL" ]; then
-    echo "✓ Test issue created: $ISSUE_URL"
-    echo ""
-    echo "The Issue Review agent should trigger automatically."
-    echo "Watch with: gh run list --workflow=idad.yml --limit 5"
-    echo ""
-    
-    # Wait and check for workflow
-    echo "Waiting for workflow to start..."
-    sleep 10
-    
-    echo "Recent workflow runs:"
-    gh run list --workflow=idad.yml --repo "$REPO" --limit 3
-  else
-    echo "❌ FAIL: Could not create test issue"
-    exit 1
-  fi
-fi
+
+## Step-by-Step End-to-End Test
+
+### Step 1: Create Test Issue
+
+First, create the test issue that will trigger the IDAD pipeline:
+
+```bash
+# Get repo info
+REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner')
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+echo "Repository: $REPO"
+echo "Test ID: $TIMESTAMP"
+
+# Create the test issue
+ISSUE_NUM=$(gh issue create \
+  --title "IDAD E2E Test: Add test greeting function ($TIMESTAMP)" \
+  --label "idad:auto" \
+  --body "## Description
+
+This is an automated end-to-end test of the IDAD pipeline.
+
+**Test ID**: $TIMESTAMP
+
+## Requirements
+
+Create a simple greeting function:
+- Create a file \`src/greeting.js\` (or appropriate for this repo)
+- Function \`greet(name)\` that returns \`Hello, {name}!\`
+- Handle edge case: if name is empty, return \`Hello, World!\`
+- Add unit tests in \`tests/greeting.test.js\`
+
+## Acceptance Criteria
+
+- [ ] Function is exported
+- [ ] Returns correct greeting
+- [ ] Handles empty name
+- [ ] Unit tests pass
+
+---
+*IDAD E2E Test - Created by repository-testing agent*" \
+  --json number -q '.number')
 
 echo ""
-echo "✅ Test 7 PASSED: End-to-end test initiated"
+echo "✅ Created test issue #$ISSUE_NUM"
+echo "   View: gh issue view $ISSUE_NUM"
+echo ""
+```
+
+### Step 2: Monitor Issue Review Agent
+
+The Issue Review agent should trigger automatically. Monitor its progress:
+
+```bash
+echo "=== Step 2: Issue Review Agent ==="
+echo "Waiting for Issue Review workflow to start..."
+sleep 5
+
+# Check for running/recent workflows
+gh run list --workflow=idad.yml --limit 5
+
+# Wait for it to complete (poll every 30 seconds)
+echo ""
+echo "Monitoring workflow... (Ctrl+C to stop watching)"
+echo "Run this to watch: gh run watch \$(gh run list --workflow=idad.yml --limit 1 --json databaseId -q '.[0].databaseId')"
+```
+
+**Expected outcome:**
+- Issue gets `type:issue` label added
+- Issue gets `state:ready` label
+- Comment from Issue Review agent with analysis
+- Planner agent triggered automatically
+
+**Verify:**
+```bash
+# Check issue labels
+gh issue view $ISSUE_NUM --json labels -q '.labels[].name'
+
+# Check for agent comment
+gh issue view $ISSUE_NUM --comments | tail -50
+```
+
+### Step 3: Monitor Planner Agent
+
+The Planner should run automatically after Issue Review:
+
+```bash
+echo "=== Step 3: Planner Agent ==="
+echo "Waiting for Planner workflow..."
+
+gh run list --workflow=idad.yml --limit 5
+```
+
+**Expected outcome:**
+- Issue gets `state:planning` label (briefly)
+- Implementation plan comment added to issue
+- Feature branch created: `feat/issue-{NUM}-*`
+- Implementer agent triggered
+
+**Verify:**
+```bash
+# Check for implementation plan in comments
+gh issue view $ISSUE_NUM --comments | grep -A 50 "Implementation Plan"
+
+# Check for branch
+git fetch origin
+git branch -r | grep "feat/issue-$ISSUE_NUM"
+```
+
+### Step 4: Monitor Implementer Agent
+
+The Implementer creates the actual code and PR:
+
+```bash
+echo "=== Step 4: Implementer Agent ==="
+echo "Waiting for Implementer workflow..."
+
+gh run list --workflow=idad.yml --limit 5
+
+# This may take several minutes as it writes code and tests
+```
+
+**Expected outcome:**
+- Code files created on feature branch
+- Tests written
+- PR created with implementation details
+- `state:implementing` label on issue (briefly)
+- Security Scanner triggered
+
+**Verify:**
+```bash
+# Check for PR
+PR_NUM=$(gh pr list --head "feat/issue-$ISSUE_NUM" --json number -q '.[0].number')
+echo "PR created: #$PR_NUM"
+
+# View PR
+gh pr view $PR_NUM
+```
+
+### Step 5: Monitor Security Scanner
+
+Security Scanner checks the PR for vulnerabilities:
+
+```bash
+echo "=== Step 5: Security Scanner ==="
+echo "Waiting for Security Scanner workflow..."
+
+gh run list --workflow=idad.yml --limit 5
+```
+
+**Expected outcome:**
+- Security analysis comment on PR
+- No critical vulnerabilities (for this simple test)
+- CI triggered (runs automatically on PR)
+
+**Verify:**
+```bash
+# Check PR comments for security scan
+gh pr view $PR_NUM --comments | grep -A 20 "Security"
+```
+
+### Step 6: Wait for CI
+
+CI runs automatically when PR is created:
+
+```bash
+echo "=== Step 6: CI ==="
+echo "Waiting for CI workflow..."
+
+# Watch CI status
+gh pr checks $PR_NUM --watch
+```
+
+**Expected outcome:**
+- CI workflow runs
+- Tests pass (if Implementer wrote correct tests)
+- Reviewer agent triggered after CI passes
+
+### Step 7: Monitor Reviewer Agent
+
+Reviewer performs code review:
+
+```bash
+echo "=== Step 7: Reviewer Agent ==="
+echo "Waiting for Reviewer workflow..."
+
+gh run list --workflow=idad.yml --limit 5
+```
+
+**Expected outcome:**
+- Code review comment on PR
+- PR approved OR changes requested
+- If approved: Documenter triggered
+- If changes requested: Issue gets `needs-changes` label
+
+**Verify:**
+```bash
+# Check PR reviews
+gh pr view $PR_NUM --json reviews -q '.reviews[].state'
+
+# Check PR comments
+gh pr view $PR_NUM --comments | tail -50
+```
+
+### Step 8: Monitor Documenter Agent
+
+Documenter updates documentation if needed:
+
+```bash
+echo "=== Step 8: Documenter Agent ==="
+echo "Waiting for Documenter workflow..."
+
+gh run list --workflow=idad.yml --limit 5
+```
+
+**Expected outcome:**
+- Documentation review/updates
+- PR gets `state:human-review` label
+- Comment indicating ready for human review
+
+**Verify:**
+```bash
+# Check labels
+gh pr view $PR_NUM --json labels -q '.labels[].name'
+
+# Should include state:human-review
+```
+
+### Step 9: Human Gate - Review and Merge
+
+**🛑 HUMAN ACTION REQUIRED**
+
+At this point, you need to:
+
+1. **Review the PR** - Verify the code looks correct:
+   ```bash
+   # View PR diff
+   gh pr diff $PR_NUM
+   
+   # View files changed
+   gh pr view $PR_NUM --json files -q '.files[].path'
+   ```
+
+2. **Approve if not already approved** (Reviewer should have done this):
+   ```bash
+   gh pr review $PR_NUM --approve --body "LGTM - E2E test verification"
+   ```
+
+3. **Merge the PR**:
+   ```bash
+   gh pr merge $PR_NUM --squash --delete-branch
+   ```
+
+### Step 10: Monitor IDAD Self-Improvement Agent (Optional)
+
+After merge, the IDAD agent may run to analyze the completed work:
+
+```bash
+echo "=== Step 10: IDAD Agent (Post-Merge) ==="
+echo "Watching for IDAD self-improvement workflow..."
+
+# This triggers on PR merge with idad:auto label
+gh run list --workflow=idad.yml --limit 5
+```
+
+### Step 11: Verify Completion & Clean Up
+
+**Verify the test completed successfully:**
+
+```bash
+echo "=== Final Verification ==="
+
+# Issue should be closed (auto-closed by PR merge)
+gh issue view $ISSUE_NUM --json state -q '.state'
+# Expected: CLOSED
+
+# Check all workflows completed
+gh run list --workflow=idad.yml --limit 10
+
+# Verify the code was merged
+git pull origin main
+ls -la src/greeting.js 2>/dev/null || echo "File location may vary"
+```
+
+**Clean up test artifacts (optional):**
+
+```bash
+# Delete the test file if you don't want to keep it
+git rm src/greeting.js tests/greeting.test.js 2>/dev/null
+git commit -m "chore: remove E2E test files"
+git push
+
+# Or keep them as proof the test worked!
+```
+
+---
+
+## End-to-End Test Summary
+
+After completing all steps, you should have verified:
+
+| Step | Agent | Expected Outcome |
+|------|-------|------------------|
+| 1 | - | Test issue created |
+| 2 | Issue Review | Issue classified, labels added |
+| 3 | Planner | Implementation plan created |
+| 4 | Implementer | Code written, PR created |
+| 5 | Security Scanner | Security analysis complete |
+| 6 | CI | Tests pass |
+| 7 | Reviewer | Code review complete |
+| 8 | Documenter | Docs updated, ready for human |
+| 9 | **Human** | PR approved and merged |
+| 10 | IDAD | Self-improvement analysis |
+| 11 | - | Issue closed, code merged |
+
+**Report results:**
+
+```markdown
+### 🧪 End-to-End Test Results
+
+**Repository**: $REPO
+**Test ID**: $TIMESTAMP  
+**Issue**: #$ISSUE_NUM
+**PR**: #$PR_NUM
+
+| Agent | Status | Duration |
+|-------|--------|----------|
+| Issue Review | ✅ | ~2 min |
+| Planner | ✅ | ~3 min |
+| Implementer | ✅ | ~5 min |
+| Security Scanner | ✅ | ~2 min |
+| CI | ✅ | ~1 min |
+| Reviewer | ✅ | ~2 min |
+| Documenter | ✅ | ~2 min |
+| Human Review | ✅ | manual |
+| IDAD | ✅ | ~2 min |
+
+**Total Pipeline Time**: ~20 minutes + human review
+
+**Result**: ✅ IDAD is fully operational!
+
+---
+```agentlog
+agent: repository-testing
+test: end-to-end
+status: success
+issue: $ISSUE_NUM
+pr: $PR_NUM
+agents_verified: 8
+timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+```
+```
+
+---
+
+## Troubleshooting E2E Test
+
+### Workflow doesn't trigger
+
+```bash
+# Check issue has correct label
+gh issue view $ISSUE_NUM --json labels
+
+# Manually trigger if needed
+gh workflow run idad.yml -f agent="issue-review" -f issue="$ISSUE_NUM"
+```
+
+### Agent fails
+
+```bash
+# Get the failed run ID
+RUN_ID=$(gh run list --workflow=idad.yml --status failure --limit 1 --json databaseId -q '.[0].databaseId')
+
+# View logs
+gh run view $RUN_ID --log-failed
+```
+
+### PR not created
+
+```bash
+# Check Implementer logs
+gh run list --workflow=idad.yml --limit 10
+
+# Look for branch
+git fetch origin
+git branch -r | grep issue-$ISSUE_NUM
+
+# Manually trigger Implementer if needed
+gh workflow run idad.yml -f agent="implementer" -f issue="$ISSUE_NUM"
+```
+
+### CI fails
+
+```bash
+# View CI logs
+gh pr checks $PR_NUM
+
+# The Implementer may have written incorrect code
+# Check the diff and potentially fix manually or re-trigger
 ```
 
 ---
