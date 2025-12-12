@@ -221,7 +221,7 @@ if gh secret list --repo "$REPO" 2>/dev/null | grep -q "IDAD_APP_ID"; then
 else
   echo -e "${YELLOW}IDAD requires a GitHub App for automation${NC}"
   echo ""
-  echo "Create a GitHub App at: ${CYAN}https://github.com/settings/apps/new${NC}"
+  echo -e "Create a GitHub App at: ${CYAN}https://github.com/settings/apps/new${NC}"
   echo ""
   echo "Required repository permissions:"
   echo "  • Contents: Read and Write"
@@ -276,7 +276,7 @@ if gh secret list --repo "$REPO" 2>/dev/null | grep -q "$API_KEY_SECRET"; then
 else
   echo -e "${YELLOW}IDAD uses ${CLI_DISPLAY} for AI agent execution${NC}"
   echo ""
-  echo "Get your API key at: ${CYAN}${API_KEY_URL}${NC}"
+  echo -e "Get your API key at: ${CYAN}${API_KEY_URL}${NC}"
   echo ""
   echo -n "Paste your ${API_KEY_NAME} key (or press Enter to skip): "
   read -s API_KEY < /dev/tty
@@ -333,6 +333,41 @@ gh api repos/${REPO}/actions/permissions/workflow -X PUT \
   echo -e "  ${YELLOW}⚠${NC} Could not set workflow permissions (may need admin access)"
 
 echo ""
+
+# Branch protection
+echo -e "${BLUE}▶ Branch protection${NC}"
+echo ""
+echo "IDAD works best with branch protection on 'main' to require PRs"
+echo "and prevent direct pushes or force pushes."
+echo ""
+echo -n "Configure branch protection now? (y/N): "
+read PROTECT_BRANCH < /dev/tty
+
+if [[ "$PROTECT_BRANCH" =~ ^[Yy]$ ]]; then
+  # Get default branch
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+  
+  gh api repos/${REPO}/branches/${DEFAULT_BRANCH}/protection -X PUT \
+    -H "Accept: application/vnd.github+json" \
+    -f "required_pull_request_reviews[dismiss_stale_reviews]=false" \
+    -f "required_pull_request_reviews[require_code_owner_reviews]=false" \
+    -F "required_pull_request_reviews[required_approving_review_count]=1" \
+    -f "enforce_admins=null" \
+    -f "restrictions=null" \
+    -f "required_status_checks=null" \
+    -F "allow_force_pushes=false" \
+    -F "allow_deletions=false" \
+    -F "block_creations=false" \
+    -F "required_linear_history=false" \
+    -F "lock_branch=false" \
+    -F "allow_fork_syncing=true" 2>/dev/null && \
+    echo -e "  ${GREEN}✓${NC} Branch protection enabled on '${DEFAULT_BRANCH}'" || \
+    echo -e "  ${YELLOW}⚠${NC} Could not set branch protection (may need admin access)"
+else
+  echo -e "  ${YELLOW}⚠${NC} Skipped - configure manually in repository settings"
+fi
+
+echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║                                                                ║${NC}"
 echo -e "${GREEN}║   ✓ IDAD Installation Complete!                               ║${NC}"
@@ -345,15 +380,19 @@ echo ""
 echo "1. Review and commit the IDAD files:"
 echo -e "   ${YELLOW}git add $CONFIG_DIR/ .github/workflows/idad.yml && git commit -m 'feat: add IDAD'${NC}"
 echo ""
-echo "2. Push to remote:"
-echo -e "   ${YELLOW}git push${NC}"
+echo "2. Push and merge to main (workflows must be in main to trigger):"
+echo -e "   ${YELLOW}git push && gh pr create --fill && gh pr merge --auto --squash${NC}"
+echo -e "   Or if on main: ${YELLOW}git push${NC}"
 echo ""
-echo "3. Create your first automated issue:"
+echo "3. Install your GitHub App on this repository:"
+echo -e "   ${YELLOW}https://github.com/settings/apps${NC} → Your App → Install App → Select ${REPO}"
+echo ""
+echo "4. Create your first automated issue:"
 echo -e "   ${YELLOW}gh issue create --title 'My feature' --label 'idad:auto' --body 'Description'${NC}"
 echo ""
-echo "4. Watch the agents work:"
+echo "5. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"
 echo ""
-echo "5. Read the docs:"
+echo "6. Read the docs:"
 echo -e "   ${YELLOW}https://github.com/${IDAD_REPO}#readme${NC}"
 echo ""
