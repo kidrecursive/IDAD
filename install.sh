@@ -317,21 +317,28 @@ read PROTECT_BRANCH < /dev/tty
 if [[ "$PROTECT_BRANCH" =~ ^[Yy]$ ]]; then
   # Get default branch
   DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
-  
+
+  # Use JSON input for proper type handling
   gh api repos/${REPO}/branches/${DEFAULT_BRANCH}/protection -X PUT \
     -H "Accept: application/vnd.github+json" \
-    -f "required_pull_request_reviews[dismiss_stale_reviews]=false" \
-    -f "required_pull_request_reviews[require_code_owner_reviews]=false" \
-    -F "required_pull_request_reviews[required_approving_review_count]=1" \
-    -f "enforce_admins=null" \
-    -f "restrictions=null" \
-    -f "required_status_checks=null" \
-    -F "allow_force_pushes=false" \
-    -F "allow_deletions=false" \
-    -F "block_creations=false" \
-    -F "required_linear_history=false" \
-    -F "lock_branch=false" \
-    -F "allow_fork_syncing=true" 2>/dev/null && \
+    --input - <<'PROTECTION_JSON' 2>/dev/null && \
+{
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": false,
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 1
+  },
+  "enforce_admins": null,
+  "restrictions": null,
+  "required_status_checks": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false,
+  "block_creations": false,
+  "required_linear_history": false,
+  "lock_branch": false,
+  "allow_fork_syncing": true
+}
+PROTECTION_JSON
     echo -e "  ${GREEN}✓${NC} Branch protection enabled on '${DEFAULT_BRANCH}'" || \
     echo -e "  ${YELLOW}⚠${NC} Could not set branch protection (may need admin access)"
 else
