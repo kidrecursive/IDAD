@@ -20,14 +20,14 @@ permissions:
 
 env:
   # Claude Code model names
-  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'claude-sonnet-4-20250514' }}
-  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'claude-opus-4-20250514' }}
-  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'claude-sonnet-4-20250514' }}
-  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'claude-sonnet-4-20250514' }}
-  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'claude-sonnet-4-20250514' }}
-  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || 'claude-sonnet-4-20250514' }}
-  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'claude-sonnet-4-20250514' }}
-  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'claude-opus-4-20250514' }}
+  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'claude-haiku-4-5-20251001' }}
+  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'claude-opus-4-5-20251101' }}
+  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'claude-haiku-4-5-20251001' }}
+  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'claude-haiku-4-5-20251001' }}
+  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'claude-haiku-4-5-20251001' }}
+  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || 'claude-sonnet-4-5-20250929' }}
+  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'claude-sonnet-4-5-20250929' }}
+  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'claude-opus-4-5-20251101' }}
 
 jobs:
   # ======================
@@ -200,15 +200,17 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.router.outputs.skip != 'true' && needs.router.outputs.agent != ''
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Get IDAD GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.IDAD_APP_ID }}
           private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Cache Claude Code CLI
         id: cache-claude

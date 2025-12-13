@@ -19,11 +19,11 @@ permissions:
   actions: write
 
 env:
-  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'sonnet-4.5' }}
+  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'haiku-4.5' }}
   MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'opus-4.5' }}
-  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'sonnet-4.5' }}
-  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'sonnet-4.5' }}
-  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'sonnet-4.5' }}
+  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'haiku-4.5' }}
+  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'haiku-4.5' }}
+  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'haiku-4.5' }}
   MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || 'sonnet-4.5' }}
   MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'sonnet-4.5' }}
   MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'opus-4.5' }}
@@ -199,15 +199,17 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.router.outputs.skip != 'true' && needs.router.outputs.agent != ''
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Get IDAD GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.IDAD_APP_ID }}
           private-key: ${{ secrets.IDAD_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Cache Cursor CLI
         id: cache-cursor
