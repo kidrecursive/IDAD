@@ -696,10 +696,10 @@ gh workflow run idad.yml --ref main \
 
 ## Agent Definition Files
 
-All agent definitions are in `.cursor/agents/`:
+All agent definitions are in `.idad/agents/`:
 
 ```
-.cursor/agents/
+.idad/agents/
 ├── issue-review.md      # Issue Review Agent
 ├── planner.md           # Planner Agent
 ├── implementer.md       # Implementer Agent
@@ -766,13 +766,16 @@ All agents have access to:
 | `GITHUB_REPOSITORY` | Repo in owner/repo format | kidrecursive/idad |
 | `GITHUB_RUN_ID` | Current workflow run ID | 20123456789 |
 | `GITHUB_WORKSPACE` | Workspace directory | /home/runner/work/repo |
+| `ANTHROPIC_API_KEY` | Claude Code API auth | (secret) |
+| `ANTHROPIC_AUTH_TOKEN` | Claude Code OAuth auth | (secret) |
 | `CURSOR_API_KEY` | Cursor AI auth | (secret) |
+| `OPENAI_API_KEY` | OpenAI Codex auth | (secret) |
 
 ---
 
 ## Common Operations
 
-All agents use standard operations from `.cursor/rules/system.mdc`:
+All agents use standard operations from `.idad/rules/system.md`:
 
 ### Git Operations
 - Configure identity
@@ -792,7 +795,7 @@ All agents use standard operations from `.cursor/rules/system.mdc`:
 - Pass issue/PR numbers
 - Set agent type
 
-See `.cursor/rules/system.mdc` for complete operation reference.
+See `.idad/rules/system.md` for complete operation reference.
 
 ---
 

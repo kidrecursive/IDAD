@@ -46,32 +46,14 @@ Run agent: $ARGUMENTS
 
 4. **Run the agent**:
 
-   Using the helper script:
-   ```bash
-   ./.idad/run.sh <agent> <issue> <pr>
-   ```
+   Read the agent file and execute its instructions within this CLI session.
+   Set up the environment first:
 
-   Or directly:
-
-   For Claude Code:
    ```bash
    export ISSUE=<issue> PR=<pr> REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-   claude \
-     --system-prompt "$(cat .idad/rules/system.md)" \
-     --print \
-     -p "$(cat .idad/agents/<agent>.md)
-
-   Execute your responsibilities now."
    ```
 
-   For Cursor:
-   ```bash
-   export ISSUE=<issue> PR=<pr> REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-   cursor-agent \
-     -f .idad/rules/system.md \
-     -f .idad/agents/<agent>.md \
-     -p "Execute your responsibilities now."
-   ```
+   Then read the agent file at `.idad/agents/<agent>.md` and follow its instructions.
 
 5. **Important warnings**:
    - Local runs don't have GitHub App token (some operations may fail)

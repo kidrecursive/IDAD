@@ -96,21 +96,24 @@ Step 3: Configuring Branch Protection (main)
 ======================================================================
 ```
 
-### Step 5: Add Cursor API Key
+### Step 5: Add API Key
 
-1. Get Cursor API key from Cursor settings
-2. Add to GitHub repository secrets:
+Add your AI CLI API key to GitHub repository secrets:
 
 **Via GitHub UI**:
 - Settings → Secrets and variables → Actions
 - New repository secret
-- Name: `CURSOR_API_KEY`
-- Value: [your key]
+- Name: Choose based on your CLI:
+  - `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` (Claude Code)
+  - `CURSOR_API_KEY` (Cursor Agent)
+  - `OPENAI_API_KEY` (OpenAI Codex)
 
 **Via gh CLI**:
 ```bash
-gh secret set CURSOR_API_KEY
-# Paste key when prompted
+gh secret set ANTHROPIC_API_KEY     # Claude Code (API key)
+gh secret set ANTHROPIC_AUTH_TOKEN  # Claude Code (OAuth - alternative)
+gh secret set CURSOR_API_KEY        # Cursor Agent
+gh secret set OPENAI_API_KEY        # OpenAI Codex
 ```
 
 ### Step 6: Verify Setup
@@ -123,7 +126,7 @@ gh label list
 ls .github/workflows/
 
 # Check agent definitions
-ls .cursor/agents/
+ls .idad/agents/
 
 # Test setup
 gh workflow run idad.yml --ref main \
@@ -417,8 +420,8 @@ gh issue list --state closed --limit 10 | grep "Report"
 ### Backup Agent Definitions
 
 ```bash
-# Backup all agent files
-cp -r .cursor/agents/ ~/backups/agents-$(date +%Y%m%d)/
+# Backup all IDAD files
+cp -r .idad/ ~/backups/idad-$(date +%Y%m%d)/
 
 # Or commit to git (already done if using IDAD)
 ```
@@ -434,10 +437,10 @@ cp -r .github/workflows/ ~/backups/workflows-$(date +%Y%m%d)/
 
 ```bash
 # If accidentally modified
-git restore .cursor/agents/agent-name.md
+git restore .idad/agents/agent-name.md
 
 # Or restore from backup
-cp ~/backups/agents-20251209/agent-name.md .cursor/agents/
+cp ~/backups/idad-20251209/agents/agent-name.md .idad/agents/
 ```
 
 ### Restore Workflows
@@ -580,7 +583,8 @@ done
 - Allow deletions: ❌
 
 **Security**:
-- Secrets: `CURSOR_API_KEY` ✅
+- Secrets: AI CLI API key (`ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, or `OPENAI_API_KEY`) ✅
+- Secrets: GitHub App (`IDAD_APP_ID`, `IDAD_APP_PRIVATE_KEY`) ✅
 - Dependabot: ✅ (recommended)
 
 ---
@@ -608,7 +612,8 @@ done
 ## Security Considerations
 
 ### Secrets Management
-- Never commit `CURSOR_API_KEY`
+- Never commit API keys (`ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, `OPENAI_API_KEY`)
+- Never commit GitHub App private key
 - Rotate keys periodically
 - Use repository secrets (not environment secrets)
 
@@ -678,11 +683,11 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/idad/main/install.sh |
 
 ## Support Resources
 
+- **Quick Start**: [QUICKSTART.md](QUICKSTART.md)
+- **Installation Guide**: [INSTALLATION.md](INSTALLATION.md)
 - **Workflow Guide**: [WORKFLOW.md](WORKFLOW.md)
 - **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Agent Reference**: [AGENTS.md](AGENTS.md)
-- **Specification**: [../specs/SPECIFICATION.md](../specs/SPECIFICATION.md)
-- **Implementation Plan**: [../specs/PLAN.md](../specs/PLAN.md)
 
 ---
 

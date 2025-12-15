@@ -204,19 +204,25 @@
         </div>
         <p>
           Create issues, get PRs automatically. AI agents handle development
-          with human review gates at plan and PR stages. Supports both
-          <a
-            href="https://docs.cursor.com/agent/cli"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Cursor Agent</a
-          >
-          and
+          with human review gates at plan and PR stages. Supports
           <a
             href="https://claude.ai/code"
             target="_blank"
             rel="noopener noreferrer"
             >Claude Code</a
+          >,
+          <a
+            href="https://docs.cursor.com/agent/cli"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Cursor Agent</a
+          >,
+          and
+          <a
+            href="https://openai.com/index/introducing-codex/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenAI Codex</a
           >
           CLIs.
         </p>
@@ -253,7 +259,7 @@
           </li>
           <li>
             <strong>Opt-in automation</strong> — Automation only runs on issues
-            with the <code>idad:auto</code> label. Remove the label to pause.
+            with the <code>idad:issue-review</code> label. Remove the label to pause.
             Add comments to redirect.
           </li>
           <li>
@@ -277,7 +283,7 @@
 
       <section>
         <h2>How It Works</h2>
-        <pre><code>You create an issue with idad:auto label
+        <pre><code>You create an issue with idad:issue-review label
          ↓
 🤖 Issue Review Agent → refines and classifies
          ↓
@@ -317,11 +323,11 @@
 
         <p>The installer will:</p>
         <ul>
-          <li>Ask which AI CLI you want to use (Cursor or Claude Code)</li>
-          <li>Download IDAD agent definitions and workflow</li>
+          <li>Ask which AI CLI you want to use (Claude Code, Cursor, or Codex)</li>
+          <li>Download IDAD agent definitions, rules, and workflow</li>
+          <li>Install slash commands for local CLI usage</li>
           <li>Guide you through GitHub App and API key setup</li>
           <li>Configure repository labels and permissions</li>
-          <li>Commit the files to your repo</li>
         </ul>
       </section>
 
@@ -394,9 +400,11 @@ gh secret set IDAD_APP_ID
 <span class="cm"># Add the private key from your .pem file</span>
 gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
 
-<span class="cm"># Add your AI CLI API key (one of these)</span>
-gh secret set CURSOR_API_KEY      <span class="cm"># For Cursor Agent</span>
-gh secret set ANTHROPIC_API_KEY   <span class="cm"># For Claude Code</span></code></pre>
+<span class="cm"># Add your AI CLI API key (choose based on your CLI)</span>
+gh secret set ANTHROPIC_API_KEY     <span class="cm"># For Claude Code (API key)</span>
+gh secret set ANTHROPIC_AUTH_TOKEN  <span class="cm"># For Claude Code (OAuth - alternative)</span>
+gh secret set CURSOR_API_KEY        <span class="cm"># For Cursor Agent</span>
+gh secret set OPENAI_API_KEY        <span class="cm"># For OpenAI Codex</span></code></pre>
       </section>
 
       <hr />
@@ -406,7 +414,7 @@ gh secret set ANTHROPIC_API_KEY   <span class="cm"># For Claude Code</span></cod
         <pre><code><span class="cm"># Create your first automated issue</span>
 gh issue create \
   <span class="fl">--title</span> <span class="st">"Add hello world feature"</span> \
-  <span class="fl">--label</span> <span class="st">"idad:auto"</span> \
+  <span class="fl">--label</span> <span class="st">"idad:issue-review"</span> \
   <span class="fl">--body</span> <span class="st">"Create a simple hello world function with tests."</span>
 
 <span class="cm"># Watch the agents work</span>
@@ -478,39 +486,47 @@ gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="s
 
       <section>
         <h2>Labels</h2>
-        <p>Add <code>idad:auto</code> to any issue to enable automation.</p>
+        <p>Add <code>idad:issue-review</code> to any issue to enable automation. <strong>Only ONE <code>idad:*</code> label at a time.</strong></p>
         <table>
           <tr>
             <th>Label</th>
             <th>Purpose</th>
           </tr>
           <tr>
-            <td><code>idad:auto</code></td>
-            <td>Enable automation (required)</td>
+            <td><code>idad:issue-review</code></td>
+            <td><strong>Start automation</strong> (opt-in)</td>
           </tr>
           <tr>
-            <td><code>type:issue</code></td>
-            <td>Standard feature</td>
+            <td><code>idad:issue-needs-clarification</code></td>
+            <td>Issue needs human input</td>
           </tr>
           <tr>
-            <td><code>type:bug</code></td>
-            <td>Bug fix</td>
+            <td><code>idad:planning</code></td>
+            <td>Planner creating plan</td>
           </tr>
           <tr>
-            <td><code>type:epic</code></td>
-            <td>Large feature (creates sub-issues)</td>
+            <td><code>idad:human-plan-review</code></td>
+            <td><strong>Waiting for plan approval</strong></td>
           </tr>
           <tr>
-            <td><code>state:plan-review</code></td>
-            <td>Waiting for plan approval</td>
+            <td><code>idad:implementing</code></td>
+            <td>Implementer writing code</td>
           </tr>
           <tr>
-            <td><code>needs-clarification</code></td>
-            <td>Waiting for human input</td>
+            <td><code>idad:security-scan</code></td>
+            <td>Security Scanner analyzing</td>
           </tr>
           <tr>
-            <td><code>needs-changes</code></td>
-            <td>Code changes requested</td>
+            <td><code>idad:code-review</code></td>
+            <td>Reviewer analyzing</td>
+          </tr>
+          <tr>
+            <td><code>idad:documenting</code></td>
+            <td>Documenter updating docs</td>
+          </tr>
+          <tr>
+            <td><code>idad:human-pr-review</code></td>
+            <td><strong>Final human review</strong></td>
           </tr>
         </table>
       </section>
@@ -527,6 +543,36 @@ gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"impl
 
 <span class="cm"># Trigger security scan</span>
 gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"security-scanner"</span> <span class="fl">-f</span> pr=<span class="st">"456"</span></code></pre>
+      </section>
+
+      <hr />
+
+      <section>
+        <h2>Local Usage</h2>
+        <p>IDAD includes slash commands for local CLI usage:</p>
+        <table>
+          <tr>
+            <th>Command</th>
+            <th>Purpose</th>
+          </tr>
+          <tr>
+            <td><code>/idad-create-issue</code></td>
+            <td>Create issues with guided questions</td>
+          </tr>
+          <tr>
+            <td><code>/idad-monitor</code></td>
+            <td>Check workflow status</td>
+          </tr>
+          <tr>
+            <td><code>/idad-approve-plan</code></td>
+            <td>Review and approve plans</td>
+          </tr>
+          <tr>
+            <td><code>/idad-run-agent</code></td>
+            <td>Run agent locally (testing)</td>
+          </tr>
+        </table>
+        <p><em>Note: Codex doesn't support slash commands. Use <code>@.idad/README.md</code> to reference IDAD instead.</em></p>
       </section>
 
       <hr />
@@ -554,7 +600,7 @@ gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"secu
           </li>
           <li>
             <strong>Opt-in Only:</strong> Automation requires explicit
-            <code>idad:auto</code> label
+            <code>idad:issue-review</code> label
           </li>
           <li>
             <strong>Bot Identity:</strong> All actions clearly attributed to

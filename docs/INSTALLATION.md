@@ -58,8 +58,9 @@ The installer will:
    - GitHub Actions enabled
 
 4. **AI CLI API Key** (one of these):
-   - **Cursor**: Get from https://cursor.com/settings
-   - **Anthropic**: Get from https://console.anthropic.com/settings/keys
+   - **Claude Code**: Get from https://console.anthropic.com/settings/keys (`ANTHROPIC_API_KEY`) or use OAuth (`ANTHROPIC_AUTH_TOKEN`)
+   - **Cursor Agent**: Get from https://cursor.com/settings (`CURSOR_API_KEY`)
+   - **OpenAI Codex**: Get from https://platform.openai.com/api-keys (`OPENAI_API_KEY`)
 
 5. **GitHub App** (for automation)
    - Create at: https://github.com/settings/apps
@@ -74,52 +75,73 @@ The installer will:
 
 ## CLI Options
 
-IDAD supports two AI CLI tools:
+IDAD supports three AI CLI tools:
 
-| CLI | Command | Config Dir | API Secret |
-|-----|---------|------------|------------|
-| **Cursor Agent** | `cursor-agent` | `.cursor/` | `CURSOR_API_KEY` |
-| **Claude Code** | `claude` | `.claude/` | `ANTHROPIC_API_KEY` |
+| CLI | Command | API Secret |
+|-----|---------|------------|
+| **Claude Code** | `claude` | `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` |
+| **Cursor Agent** | `cursor-agent` | `CURSOR_API_KEY` |
+| **OpenAI Codex** | `codex` | `OPENAI_API_KEY` |
+
+All IDAD configuration lives in `.idad/` regardless of which CLI you use.
 
 ### Install with Specific CLI
 
 ```bash
 # Interactive (will prompt)
-curl -fsSL https://...install.sh | bash
-
-# Cursor Agent (explicit)
-curl -fsSL https://...install.sh | bash -s -- --cli cursor
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 
 # Claude Code (explicit)
-curl -fsSL https://...install.sh | bash -s -- --cli claude
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash -s -- --cli claude
+
+# Cursor Agent (explicit)
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash -s -- --cli cursor
+
+# OpenAI Codex (explicit)
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash -s -- --cli codex
 ```
 
 ### Files Installed
 
-**Cursor Agent:**
 ```
-.cursor/
-├── agents/           # 9 agent definitions
+.idad/                          # CLI-agnostic IDAD configuration
+├── agents/
+│   ├── issue-review.md
+│   ├── planner.md
+│   ├── implementer.md
+│   ├── security-scanner.md
+│   ├── reviewer.md
+│   ├── documenter.md
+│   ├── idad.md
+│   ├── reporting.md
+│   └── repository-testing.md
 ├── rules/
-│   └── system.mdc    # System context
-└── README.md
+│   └── system.md               # System context
+├── commands/                   # Slash command source files
+│   ├── idad-create-issue.md
+│   ├── idad-monitor.md
+│   ├── idad-approve-plan.md
+│   └── idad-run-agent.md
+└── README.md                   # Local usage documentation
 
-.github/workflows/
-└── idad.yml          # Main workflow (CI created by IDAD agent when needed)
+.claude/commands/               # Claude Code slash commands (copies)
+└── idad-*.md
+
+.cursor/commands/               # Cursor slash commands (copies)
+└── idad-*.md
+
+.github/
+├── actions/
+│   └── run-idad-agent/        # Composite action for CLI abstraction
+│       └── action.yml
+└── workflows/
+    └── idad.yml               # Unified workflow
 ```
 
-**Claude Code:**
-```
-.claude/
-├── agents/           # 9 agent definitions
-└── rules/
-    └── system.mdc    # System context (same format for both CLIs)
-
-.github/workflows/
-└── idad.yml          # Main workflow (CI created by IDAD agent when needed)
-```
-
-**Note**: CI workflow is NOT installed by default. The IDAD agent analyzes your project after the first PR merges and creates an appropriate CI workflow based on your project's languages and testing frameworks. This allows seamless integration with existing repositories that already have CI.
+**Notes:**
+- All IDAD configuration lives in `.idad/` regardless of which CLI you use
+- CLI-specific command directories are created for slash command support (except Codex, which doesn't support slash commands)
+- CI workflow is NOT installed by default. The IDAD agent analyzes your project after the first PR merges and creates an appropriate CI workflow based on your project's languages and testing frameworks
 
 ---
 
@@ -172,17 +194,20 @@ gh secret set IDAD_APP_ID
 # Private Key (from .pem file)
 gh secret set IDAD_APP_PRIVATE_KEY < ~/Downloads/your-app.private-key.pem
 
-# AI CLI API Key (choose one based on your CLI)
-gh secret set CURSOR_API_KEY      # For Cursor Agent
-# OR
-gh secret set ANTHROPIC_API_KEY   # For Claude Code
+# AI CLI API Key (choose based on your CLI)
+gh secret set ANTHROPIC_API_KEY     # For Claude Code (API key)
+gh secret set ANTHROPIC_AUTH_TOKEN  # For Claude Code (OAuth - alternative)
+gh secret set CURSOR_API_KEY        # For Cursor Agent
+gh secret set OPENAI_API_KEY        # For OpenAI Codex
 ```
+
+> **Claude Code Authentication**: You can use either `ANTHROPIC_API_KEY` (standard API key) or `ANTHROPIC_AUTH_TOKEN` (OAuth bearer token from `claude auth status`). Only one is required.
 
 ### Verify Secrets
 
 ```bash
 gh secret list
-# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, and your API key
+# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, and your CLI API key
 ```
 
 ---
@@ -242,24 +267,27 @@ gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
 ### 1. Check Files Exist
 
 ```bash
-# For Cursor
-ls .cursor/agents/
+# Check IDAD configuration
+ls .idad/agents/
 # Should show 9 .md files
 
-# For Claude
-ls .claude/agents/
-# Should show 9 .md files
+ls .idad/commands/
+# Should show 4 slash command files
 
-# Check workflow
-ls .github/workflows/
-# Should show: idad.yml (ci.yml created later by IDAD agent)
+# Check workflow and composite action
+ls .github/workflows/idad.yml
+ls .github/actions/run-idad-agent/action.yml
+
+# Check CLI-specific slash commands (if applicable)
+ls .claude/commands/idad-*.md 2>/dev/null
+ls .cursor/commands/idad-*.md 2>/dev/null
 ```
 
 ### 2. Check Secrets
 
 ```bash
 gh secret list
-# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, CURSOR_API_KEY (or ANTHROPIC_API_KEY)
+# Should show: IDAD_APP_ID, IDAD_APP_PRIVATE_KEY, and your CLI API key
 ```
 
 ### 3. Test with Example Issue
@@ -336,8 +364,8 @@ gh run view <run-id> --log
 gh run view <run-id> --log
 
 # Common issues:
-# - Missing API key (CURSOR_API_KEY or ANTHROPIC_API_KEY)
-# - Missing agent files
+# - Missing API key (ANTHROPIC_API_KEY, CURSOR_API_KEY, or OPENAI_API_KEY)
+# - Missing agent files in .idad/agents/
 # - Invalid model name
 ```
 
@@ -348,12 +376,13 @@ gh run view <run-id> --log
 **Solution:**
 ```bash
 # Verify secret exists
-gh secret list | grep -E "(CURSOR|ANTHROPIC)"
+gh secret list | grep -E "(CURSOR|ANTHROPIC|OPENAI)"
 
-# Re-add secret
-gh secret set CURSOR_API_KEY
-# or
-gh secret set ANTHROPIC_API_KEY
+# Re-add secret (choose based on your CLI)
+gh secret set ANTHROPIC_API_KEY     # Claude Code
+gh secret set ANTHROPIC_AUTH_TOKEN  # Claude Code (OAuth)
+gh secret set CURSOR_API_KEY        # Cursor Agent
+gh secret set OPENAI_API_KEY        # OpenAI Codex
 ```
 
 ---
@@ -363,9 +392,11 @@ gh secret set ANTHROPIC_API_KEY
 To remove IDAD:
 
 ```bash
-# 1. Delete files (choose based on your CLI)
-rm -rf .cursor        # Cursor Agent
-rm -rf .claude        # Claude Code
+# 1. Delete IDAD files
+rm -rf .idad
+rm -rf .claude/commands/idad-*.md
+rm -rf .cursor/commands/idad-*.md
+rm -rf .github/actions/run-idad-agent
 rm .github/workflows/idad.yml
 # Note: If IDAD created a ci.yml, you may want to keep it or remove it:
 # rm .github/workflows/ci.yml
@@ -373,7 +404,10 @@ rm .github/workflows/idad.yml
 # 2. Remove secrets
 gh secret delete IDAD_APP_ID
 gh secret delete IDAD_APP_PRIVATE_KEY
-gh secret delete CURSOR_API_KEY      # or ANTHROPIC_API_KEY
+gh secret delete ANTHROPIC_API_KEY      # if used
+gh secret delete ANTHROPIC_AUTH_TOKEN   # if used
+gh secret delete CURSOR_API_KEY         # if used
+gh secret delete OPENAI_API_KEY         # if used
 
 # 3. Delete labels (optional)
 gh label delete "idad:issue-review"

@@ -65,22 +65,9 @@ After installation, these commands are available in your CLI:
 | `/idad-approve-plan` | Review and approve plans | `/idad-approve-plan 123` |
 | `/idad-run-agent` | Run agent locally (testing) | `/idad-run-agent planner 123` |
 
-> **Note:** OpenAI Codex doesn't support slash commands. Use the `.idad/run.sh` script or reference this README directly.
+### Direct Reference (All CLIs, including Codex)
 
-### Using the Run Script (All CLIs, including Codex)
-
-```bash
-# Run an agent locally
-.idad/run.sh <agent> [issue] [pr]
-
-# Examples
-IDAD_CLI=codex .idad/run.sh planner 123
-IDAD_CLI=claude .idad/run.sh implementer 123 456
-```
-
-### Alternative: Direct Reference
-
-If slash commands aren't available, reference this README directly:
+Reference this README directly in your CLI session:
 
 ```
 @.idad/README.md <your request>
@@ -128,8 +115,9 @@ Shows recent workflow runs and their status.
    ```
    /idad-monitor 123
    ```
+   Or for Codex: `@.idad/README.md What's the status of issue 123?`
 
-2. If needed, run agent locally:
+2. If needed, run agent locally (Claude Code/Cursor only):
    ```
    /idad-run-agent planner 123
    ```
@@ -222,10 +210,14 @@ export OPENAI_API_KEY=<your-key>
 - Install GitHub CLI: https://cli.github.com/
 - Authenticate: `gh auth login`
 
-**"Permission denied" on local agent run**
-- Local runs don't have GitHub App permissions
-- Some operations (label changes, PR creation) may fail
-- Use for testing only; real workflow should run via GitHub Actions
+**Local agent runs fail to modify GitHub**
+- Local CLI sessions don't have GitHub App permissions
+- Some operations (label changes, PR creation) require the GitHub App token
+- Use local runs for testing only; real workflow should run via GitHub Actions
+
+**Codex doesn't have slash commands**
+- Use direct README reference: `@.idad/README.md <your request>`
+- Or create issues manually and let the workflow handle automation
 
 ---
 

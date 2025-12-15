@@ -202,10 +202,6 @@ echo -e "  ${GREEN}✓${NC} .idad/rules/system.md"
 cp "$TEMP_DIR/idad/src/idad/README.md" .idad/
 echo -e "  ${GREEN}✓${NC} .idad/README.md"
 
-cp "$TEMP_DIR/idad/src/idad/run.sh" .idad/
-chmod +x .idad/run.sh
-echo -e "  ${GREEN}✓${NC} .idad/run.sh"
-
 # Copy slash commands to .idad/ and CLI-specific directory (if applicable)
 cp "$TEMP_DIR/idad/src/idad/commands/"*.md .idad/commands/
 echo -e "  ${GREEN}✓${NC} .idad/commands/ (4 slash commands)"
@@ -484,9 +480,8 @@ if [ -n "$COMMANDS_DIR" ]; then
   echo -e "   ${YELLOW}/idad-create-issue Add a new feature${NC}"
   echo -e "   ${YELLOW}/idad-monitor${NC}"
 else
-  echo "4. Try running agents locally (Codex doesn't support slash commands):"
-  echo -e "   ${YELLOW}.idad/run.sh issue-review 123${NC}"
-  echo -e "   ${YELLOW}.idad/run.sh planner 123${NC}"
+  echo "4. Reference the IDAD README in your Codex session:"
+  echo -e "   ${YELLOW}@.idad/README.md Create an issue for adding a new feature${NC}"
 fi
 echo ""
 echo "5. Create your first automated issue:"

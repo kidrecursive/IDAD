@@ -79,10 +79,7 @@ curl -fsSL https://...install.sh | bash -s -- --cli codex
 After installation, run the repository testing agent to verify everything is configured correctly:
 
 ```bash
-# Using the run script
-.idad/run.sh repository-testing
-
-# Or use the slash command
+# Use the slash command in your CLI
 /idad-run-agent repository-testing
 ```
 
@@ -263,7 +260,6 @@ gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
 │   ├── idad-monitor.md
 │   ├── idad-approve-plan.md
 │   └── idad-run-agent.md
-├── run.sh                      # Local agent runner script
 └── README.md                   # Local usage documentation
 
 .claude/commands/               # Claude Code slash commands (copies)

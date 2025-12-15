@@ -8,12 +8,12 @@ Get up and running with IDAD in under 5 minutes!
 
 **IDAD (Issue Driven Agentic Development)** is a self-improving, AI-driven GitHub automation system where AI agents automatically:
 
-1. 📝 Review and refine your issues
-2. 🗺️ Create implementation plans
-3. 💻 Write code and tests
-4. ✅ Run CI and review code
-5. 📚 Update documentation
-6. 🔄 Improve themselves
+1. Review and refine your issues
+2. Create implementation plans
+3. Write code and tests
+4. Run security scans and code review
+5. Update documentation
+6. Improve themselves
 
 You create an issue → AI agents deliver a ready-to-merge PR!
 
@@ -22,94 +22,79 @@ You create an issue → AI agents deliver a ready-to-merge PR!
 ## Prerequisites
 
 - GitHub repository with admin access
-- [GitHub CLI](https://cli.github.com/) installed
-- [Cursor API key](https://cursor.com/settings)
+- [GitHub CLI](https://cli.github.com/) installed and authenticated
+- AI CLI API key (one of):
+  - [Claude Code](https://claude.ai/code) - `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`
+  - [Cursor Agent](https://cursor.com/settings) - `CURSOR_API_KEY`
+  - [OpenAI Codex](https://platform.openai.com/api-keys) - `OPENAI_API_KEY`
 
 ---
 
 ## 5-Minute Setup
 
-### Step 1: Install IDAD CLI
-
-Add the IDAD CLI to your PATH:
+### Step 1: Install IDAD
 
 ```bash
-# From your repository root
-export PATH="$PATH:$(pwd)/.idad/bin"
-
-# Or add to your shell profile for permanent access
-echo 'export PATH="$PATH:/path/to/your/repo/.idad/bin"' >> ~/.zshrc
-# (or ~/.bashrc for bash)
+curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 ```
 
-Verify installation:
+The installer will:
+- Ask which AI CLI you want to use (Claude Code, Cursor, or Codex)
+- Download IDAD agent definitions, rules, and workflow
+- Install slash commands for local CLI usage
+- Guide you through GitHub App and API key setup
+
+### Step 2: Commit and Push
 
 ```bash
-idad version
+git add .idad/ .github/
+# Also add CLI-specific command directories if created:
+git add .claude/commands/ 2>/dev/null || true
+git add .cursor/commands/ 2>/dev/null || true
+
+git commit -m "feat: add IDAD automation"
+git push
 ```
 
-### Step 2: Run Setup
+### Step 3: Add Secrets
 
 ```bash
-idad setup
-```
+# GitHub App credentials (required)
+gh secret set IDAD_APP_ID
+gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
 
-This will:
-- ✅ Create 9 IDAD labels
-- ✅ Configure GitHub Actions permissions
-- ✅ Set up branch protection
-
-### Step 3: Add Cursor API Key
-
-Get your key from [cursor.com/settings](https://cursor.com/settings), then:
-
-```bash
-gh secret set CURSOR_API_KEY
-# Paste your key when prompted
+# AI CLI API key (choose based on your CLI)
+gh secret set ANTHROPIC_API_KEY     # For Claude Code (API key)
+gh secret set ANTHROPIC_AUTH_TOKEN  # For Claude Code (OAuth - alternative)
+gh secret set CURSOR_API_KEY        # For Cursor Agent
+gh secret set OPENAI_API_KEY        # For OpenAI Codex
 ```
 
 ### Step 4: Create Your First Issue
 
 ```bash
-idad new "Add welcome message"
+gh issue create \
+  --title "Add hello world feature" \
+  --label "idad:issue-review" \
+  --body "Create a simple hello world function with tests."
 ```
 
-You'll be prompted for:
-- **Type**: feature (press Enter for default)
-- **Description**: Describe what you want (press Ctrl+D when done)
-
-Example:
-```
-Type: [feature/bug/documentation/epic] (default: feature)
-[Press Enter]
-
-Description (press Ctrl+D when done):
----
-Add a simple welcome message function that greets users by name.
-
-Requirements:
-- Function should take a name parameter
-- Return "Hello, [name]!"
-- Handle empty/null input gracefully
-[Press Ctrl+D]
-```
-
-### Step 5: Watch It Work! 🎉
+### Step 5: Watch It Work!
 
 ```bash
-# Watch progress live
-idad watch 1
+# Watch the agents work
+gh run list --workflow=idad.yml --limit 5
 
-# Or check status
-idad status 1
+# View workflow details
+gh run view
 ```
 
 Within ~6-10 minutes, you'll have:
-- ✅ Analyzed issue ready for planning
-- ✅ Detailed implementation plan (awaiting your approval)
-- ✅ Complete code with tests (after approval)
-- ✅ Security-scanned and reviewed PR
-- ✅ Updated documentation
+- Analyzed issue ready for planning
+- Detailed implementation plan (awaiting your approval)
+- Complete code with tests (after approval)
+- Security-scanned and reviewed PR
+- Updated documentation
 
 ---
 
@@ -155,7 +140,7 @@ Documenter Agent (30-90s)
     ├─ Adds examples
     └─ → idad:human-pr-review
     ↓
-Ready for Your Review! 🎉
+Ready for Your Review!
 ```
 
 ### Your Turn
@@ -169,115 +154,80 @@ Ready for Your Review! 🎉
 
 ---
 
-## Common Commands
+## Local Usage with Slash Commands
 
-### Creating Issues
+IDAD includes slash commands for local CLI sessions (Claude Code and Cursor):
 
+| Command | Purpose |
+|---------|---------|
+| `/idad-create-issue` | Create issues with guided questions |
+| `/idad-monitor` | Check workflow status for issues/PRs |
+| `/idad-approve-plan` | Review and approve implementation plans |
+| `/idad-run-agent` | Run an agent locally for testing |
+
+Example usage in your CLI:
 ```bash
-# Interactive creation
-idad new "Your feature title"
+# In Claude Code or Cursor, type:
+/idad-create-issue add user authentication
 
-# View all active issues
-idad list
-
-# Check specific issue status
-idad status 123
-```
-
-### Monitoring
-
-```bash
-# Watch issue progress live
-idad watch 123
-
-# List all active IDAD issues
-idad list
-
-# View workflow logs
-idad logs <run-id>
-```
-
-### Manual Control
-
-```bash
-# Pause automation
-idad pause 123
-
-# Resume automation
-idad resume 123
-
-# Retry current step
-idad retry 123
-
-# Manually trigger specific agent
-idad trigger planner 123
-```
-
-### Documentation
-
-```bash
-# Quick start (this guide)
-idad docs quickstart
-
-# Complete workflow guide
-idad docs workflow
-
-# Agent reference
-idad docs agents
-
-# Troubleshooting
-idad docs troubleshooting
-
-# Operations manual
-idad docs operations
+# Or for Codex (no slash commands), reference the README:
+@.idad/README.md Let's create an issue for adding dark mode
 ```
 
 ---
 
-## Example: Full Workflow
+## Common Operations
 
-Let's create a real feature:
+### Creating Issues
 
 ```bash
-# 1. Create issue
-idad new "Add user authentication"
+# Create with label (starts automation)
+gh issue create \
+  --title "Your feature title" \
+  --label "idad:issue-review" \
+  --body "Detailed description..."
 
-# When prompted:
-Type: feature
-Description:
-Add basic user authentication with email/password.
+# Or use slash command in your CLI
+/idad-create-issue
+```
 
-Requirements:
-- User registration endpoint
-- Login endpoint
-- Password hashing
-- JWT token generation
-- Input validation
-[Ctrl+D]
+### Monitoring Progress
 
-# Output:
-✅ Issue #47 created!
+```bash
+# List active workflow runs
+gh run list --workflow=idad.yml --limit 5
 
-Watch progress:
-  idad watch 47
-  idad status 47
+# View specific run details
+gh run view <run-id>
 
-# 2. Watch it work
-idad watch 47
+# View run logs
+gh run view <run-id> --log
 
-# You'll see:
-# - Issue Review Agent refines requirements (1 min)
-# - Planner Agent creates implementation plan (2 min)
-# - Implementer Agent writes code and tests (3 min)
-# - CI runs tests (1 min)
-# - Reviewer Agent reviews code (1 min)
-# - Documenter Agent updates docs (1 min)
+# Or use slash command
+/idad-monitor
+```
 
-# 3. Review and merge
-gh pr view 48 --web
-gh pr merge 48 --squash
+### Manual Triggers
 
-# Done! Feature is live.
+```bash
+# Trigger specific agent
+gh workflow run idad.yml -f agent="planner" -f issue="123" -f pr=""
+
+# Re-run implementer on existing PR
+gh workflow run idad.yml -f agent="implementer" -f issue="123" -f pr="456"
+
+# Trigger security scan
+gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
+```
+
+### Pausing Automation
+
+```bash
+# Remove the idad:* label to pause
+gh issue edit 123 --remove-label "idad:planning"
+
+# Re-add to resume
+gh issue edit 123 --add-label "idad:planning"
 ```
 
 ---
@@ -286,7 +236,7 @@ gh pr merge 48 --squash
 
 ### Write Clear Issues
 
-✅ **Good:**
+**Good:**
 ```
 Title: Add email validation
 Description:
@@ -303,7 +253,7 @@ Acceptance Criteria:
 - Informative error messages
 ```
 
-❌ **Not Great:**
+**Not Great:**
 ```
 Title: Fix emails
 Description: Emails don't work
@@ -319,22 +269,13 @@ Description: Emails don't work
 
 ```bash
 # Quick status check
-idad status
+gh run list --workflow=idad.yml --limit 5
 
-# Live monitoring
-idad watch 123
+# Check workflows with details
+gh run view
 
-# Check workflows
-gh run list --limit 5
-```
-
-### Pause When Needed
-
-```bash
-# Need to make manual changes?
-idad pause 123
-# Make your changes
-idad resume 123
+# Use slash command for interactive monitoring
+/idad-monitor
 ```
 
 ---
@@ -346,45 +287,45 @@ idad resume 123
 **Check:**
 1. Does issue have `idad:issue-review` label?
 2. Are workflows running? `gh run list`
-3. Is `CURSOR_API_KEY` set? `gh secret list`
+3. Is your API key set? `gh secret list`
 
 **Fix:**
 ```bash
 # Add label if missing
 gh issue edit 123 --add-label "idad:issue-review"
 
-# Manually trigger
-idad trigger issue-review 123
+# Manually trigger the workflow
+gh workflow run idad.yml -f agent="issue-review" -f issue="123" -f pr=""
 ```
 
-### Issue: Workflow stuck
+### Issue: Workflow failed
 
 **Check:**
 ```bash
 # View recent runs
-gh run list --limit 5
+gh run list --workflow=idad.yml --limit 5
 
-# Check logs
-idad logs <run-id>
+# Check logs for failed run
+gh run view <run-id> --log-failed
 ```
 
 **Fix:**
 ```bash
-# Retry current step
-idad retry 123
+# Re-run failed workflow
+gh run rerun <run-id>
 ```
 
 ### Issue: Want to make manual changes
 
 ```bash
-# Pause automation
-idad pause 123
+# Remove label to pause automation
+gh issue edit 123 --remove-label "idad:implementing"
 
 # Make your changes
-# ... edit issue, add comments, etc ...
+# ... edit code, add comments, etc ...
 
-# Resume when ready
-idad resume 123
+# Re-add label when ready to continue
+gh issue edit 123 --add-label "idad:implementing"
 ```
 
 ---
@@ -393,43 +334,42 @@ idad resume 123
 
 ### Learn More
 
+- **[Installation Guide](INSTALLATION.md)** - Detailed setup instructions
 - **[Complete Workflow Guide](WORKFLOW.md)** - Detailed walkthrough
 - **[Agent Reference](AGENTS.md)** - All agents documented
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Problem solving
 - **[Operations Manual](OPERATIONS.md)** - Repository management
 
-### Advanced Usage
+### Verify Installation
 
-- **Epic Features** - Break large features into sub-issues
-- **System Reports** - `idad report weekly`
-- **Custom Workflows** - Modify agents for your needs
-- **Self-Improvement** - IDAD automatically improves itself
+Run the repository testing agent to verify everything is configured:
 
-### Get Help
+```bash
+# Use slash command in your CLI
+/idad-run-agent repository-testing
+```
 
-- 📚 **Read the docs**: `idad docs workflow`
-- 🔍 **Search issues**: Check if others had similar problems
-- 💬 **Ask questions**: Create an issue without any `idad:*` label
+This verifies:
+- All agent files are present
+- Workflow is correctly configured
+- GitHub labels exist
+- Secrets are configured
+- Actions permissions are set
 
 ---
 
 ## What You've Learned
 
-✅ Install and setup IDAD  
-✅ Create your first automated issue  
-✅ Monitor workflow progress  
-✅ Review and merge automated PRs  
-✅ Use CLI commands  
+- Install and setup IDAD
+- Create your first automated issue
+- Monitor workflow progress
+- Use slash commands for local interaction
+- Review and merge automated PRs
 
-**You're ready to build with IDAD!** 🚀
+**You're ready to build with IDAD!**
 
 ---
 
-**Time to complete**: < 5 minutes  
-**What you get**: Fully automated development workflow  
+**Time to complete**: < 5 minutes
+**What you get**: Fully automated development workflow
 **Next**: Create more issues and watch IDAD work!
-
----
-
-**Version**: 1.1.0
-**Last Updated**: 2025-12-12

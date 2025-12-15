@@ -31,7 +31,6 @@ gh issue view <issue-number> --json labels
 
 **Check 2: Workflows**
 ```bash
-gh run list --workflow=dispatcher.yml --limit 5
 gh run list --workflow=idad.yml --limit 5
 ```
 - Should see recent runs
@@ -84,20 +83,6 @@ gh workflow run idad.yml \
 **Check**: Settings → Actions → General
 
 **Solution**: Enable GitHub Actions for the repository
-
----
-
-### Issue: Dispatcher runs but IDAD workflow doesn't start
-
-**Cause**: Dispatcher permissions
-
-**Check**: `.github/workflows/dispatcher.yml` has:
-```yaml
-permissions:
-  actions: write
-```
-
-**Solution**: Add permissions or update workflows
 
 ---
 
@@ -402,8 +387,7 @@ gh run view <run-id> --log | grep "workflow run"
 
 **Solution**: Ensure these files exist on `main`:
 - `.github/workflows/idad.yml`
-- `.github/workflows/dispatcher.yml`
-- `.github/workflows/ci.yml`
+- `.github/actions/run-idad-agent/action.yml`
 
 ---
 
@@ -686,17 +670,19 @@ gh pr view <pr-number> --json comments --jq '.comments[].body' | grep -Pzo '```a
 
 **Check**:
 ```bash
-ls .cursor/agents/
+ls .idad/agents/
 ```
 
 **Should have**:
 - issue-review.md
 - planner.md
 - implementer.md
+- security-scanner.md
 - reviewer.md
 - documenter.md
 - idad.md
 - reporting.md
+- repository-testing.md
 
 ---
 
@@ -723,18 +709,26 @@ ls .cursor/agents/
 
 ---
 
-### "cursor-agent: command not found"
+### "cursor-agent: command not found" / "claude: command not found" / "codex: command not found"
 
-**Cause**: Cursor CLI not installed or not in PATH
+**Cause**: CLI not installed or not in PATH
 
-**Check**: Workflow installs cursor-agent:
-```yaml
-- name: Install Cursor CLI
-  run: curl https://cursor.com/install -fsS | bash
-  
-- name: Add to PATH
-  run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-```
+**Solution**: The composite action `.github/actions/run-idad-agent/action.yml` handles CLI installation automatically. If you see this error:
+
+1. Verify the composite action exists:
+   ```bash
+   ls .github/actions/run-idad-agent/action.yml
+   ```
+
+2. Check which CLI is configured in your workflow:
+   ```bash
+   grep "cli:" .github/workflows/idad.yml
+   ```
+
+3. Ensure the correct API key secret is set:
+   ```bash
+   gh secret list | grep -E "(ANTHROPIC|CURSOR|OPENAI)"
+   ```
 
 ---
 
@@ -763,11 +757,12 @@ When asking for help, provide:
 Example:
 ```
 Issue: #123
-Current State: state:implementing
+Current State: idad:implementing
 Last Agent: Planner (completed)
 Expected: Implementer should run
 Workflow Run: 20123456789
 Error: [paste error from logs]
+CLI: Claude Code
 ```
 
 ### Where to Get Help
@@ -776,6 +771,107 @@ Error: [paste error from logs]
 - Review workflow logs
 - Check [WORKFLOW.md](WORKFLOW.md) for expected behavior
 - Check [AGENTS.md](AGENTS.md) for agent details
+
+---
+
+## CLI-Specific Issues
+
+### Codex-Specific Issues
+
+**Problem**: Slash commands don't work with Codex
+
+**This is expected behavior.** OpenAI Codex doesn't support slash commands.
+
+**Solution**: Use `@.idad/README.md` to reference IDAD in your Codex session:
+```
+@.idad/README.md Create an issue for adding dark mode
+```
+
+---
+
+**Problem**: Codex authentication fails
+
+**Check**:
+```bash
+gh secret list | grep OPENAI_API_KEY
+```
+
+**Solution**:
+```bash
+# Re-add the OpenAI API key
+gh secret set OPENAI_API_KEY
+```
+
+---
+
+### Claude Code-Specific Issues
+
+**Problem**: Authentication using OAuth token fails
+
+**Solution**: You can use either `ANTHROPIC_API_KEY` (standard API key) or `ANTHROPIC_AUTH_TOKEN` (OAuth). Try switching:
+```bash
+# If using OAuth, try API key instead
+gh secret set ANTHROPIC_API_KEY
+
+# Get your token from claude auth status
+claude auth status
+```
+
+---
+
+### Cursor-Specific Issues
+
+**Problem**: Cursor Agent model not found
+
+**Solution**: Verify model names match Cursor's expected format:
+```bash
+# Check current model setting
+gh variable list | grep IDAD_MODEL
+
+# Update if needed (Cursor uses different model names)
+gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
+gh variable set IDAD_MODEL_IMPLEMENTER --body "sonnet-4.5"
+```
+
+---
+
+## Slash Command Issues
+
+### Problem: Slash commands not appearing
+
+**Check**:
+```bash
+# Verify slash command files exist
+ls .claude/commands/idad-*.md 2>/dev/null  # For Claude Code
+ls .cursor/commands/idad-*.md 2>/dev/null  # For Cursor
+```
+
+**Solution**: Re-copy from source:
+```bash
+# Copy from .idad/commands/ to CLI-specific directory
+cp .idad/commands/idad-*.md .claude/commands/   # For Claude Code
+cp .idad/commands/idad-*.md .cursor/commands/   # For Cursor
+```
+
+---
+
+### Problem: Slash command fails to execute
+
+**Common Causes**:
+- Not in a git repository
+- GitHub CLI not authenticated
+
+**Solution**:
+```bash
+# Verify git repo
+git rev-parse --git-dir
+
+# Check GitHub CLI auth
+gh auth status
+
+# Re-authenticate if needed
+gh auth login
+```
 
 ---
 
@@ -788,8 +884,9 @@ Error: [paste error from logs]
 
 ### Monitor Progress
 - Check labels periodically
-- Watch for `needs-clarification`
+- Watch for `idad:issue-needs-clarification`
 - Review agent comments
+- Use `/idad-monitor` slash command (Claude Code/Cursor)
 
 ### Start Small
 - Test with simple issues first
