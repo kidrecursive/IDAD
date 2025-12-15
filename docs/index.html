@@ -216,8 +216,7 @@
             target="_blank"
             rel="noopener noreferrer"
             >Cursor Agent</a
-          >,
-          and
+          >, and
           <a
             href="https://openai.com/index/introducing-codex/"
             target="_blank"
@@ -259,8 +258,8 @@
           </li>
           <li>
             <strong>Opt-in automation</strong> — Automation only runs on issues
-            with the <code>idad:issue-review</code> label. Remove the label to pause.
-            Add comments to redirect.
+            with the <code>idad:issue-review</code> label. Remove the label to
+            pause. Add comments to redirect.
           </li>
           <li>
             <strong>Two human gates</strong> — You approve the plan before
@@ -271,6 +270,12 @@
             <strong>GitHub native</strong> — Built on GitHub Actions. No
             external services, no new tools to learn. Works with your existing
             workflow.
+          </li>
+          <li>
+            <strong>Configurable agent ensemble</strong> — Nine specialized
+            agents, each tuned to its task. Use Opus for complex planning, Haiku
+            for fast implementation if you're using Claude Code. Mix models
+            across vendors if you are using Cursor Agent.
           </li>
         </ul>
         <blockquote>
@@ -323,7 +328,9 @@
 
         <p>The installer will:</p>
         <ul>
-          <li>Ask which AI CLI you want to use (Claude Code, Cursor, or Codex)</li>
+          <li>
+            Ask which AI CLI you want to use (Claude Code, Cursor, or Codex)
+          </li>
           <li>Download IDAD agent definitions, rules, and workflow</li>
           <li>Install slash commands for local CLI usage</li>
           <li>Guide you through GitHub App and API key setup</li>
@@ -486,7 +493,10 @@ gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="s
 
       <section>
         <h2>Labels</h2>
-        <p>Add <code>idad:issue-review</code> to any issue to enable automation. <strong>Only ONE <code>idad:*</code> label at a time.</strong></p>
+        <p>
+          Add <code>idad:issue-review</code> to any issue to enable automation.
+          <strong>Only ONE <code>idad:*</code> label at a time.</strong>
+        </p>
         <table>
           <tr>
             <th>Label</th>
@@ -572,7 +582,12 @@ gh workflow run idad.yml <span class="fl">-f</span> agent=<span class="st">"secu
             <td>Run agent locally (testing)</td>
           </tr>
         </table>
-        <p><em>Note: Codex doesn't support slash commands. Use <code>@.idad/README.md</code> to reference IDAD instead.</em></p>
+        <p>
+          <em
+            >Note: Codex doesn't support slash commands. Use
+            <code>@.idad/README.md</code> to reference IDAD instead.</em
+          >
+        </p>
       </section>
 
       <hr />

@@ -163,17 +163,37 @@ gh secret set OPENAI_API_KEY
 gh variable set IDAD_CLI --body "claude"   # or "cursor" or "codex"
 ```
 
-### Configure Models
+### Model Defaults
+
+The installer configures three model tiers (large/medium/small) based on your CLI:
+
+| Tier | Claude Code | Cursor | Codex |
+|------|-------------|--------|-------|
+| **Large** | `claude-opus-4-5-20251101` | `claude-opus-4-5-20251101` | `o3` |
+| **Medium** | `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` | `gpt-4o` |
+| **Small** | `claude-haiku-3-5-20241022` | `claude-haiku-3-5-20241022` | `gpt-4o-mini` |
+
+**Default assignments:**
+- Planner & IDAD → Large (complex reasoning)
+- All others → Medium (balanced)
+- Small available for cost-sensitive overrides
+
+View current configuration:
+```bash
+gh variable list
+```
+
+### Override Models (Optional)
 
 ```bash
-# Claude Code format
-gh variable set IDAD_MODEL_PLANNER --body "claude-opus-4-5-20251101"
+# Override specific agent
+gh variable set IDAD_MODEL_PLANNER --body "your-model-name"
 
-# Cursor format
-gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
+# Override all agents
+gh variable set IDAD_MODEL_DEFAULT --body "your-model-name"
 
-# Codex format
-gh variable set IDAD_MODEL_PLANNER --body "gpt-5-codex"
+# Use small model for faster/cheaper
+gh variable set IDAD_MODEL_DOCUMENTER --body "claude-haiku-3-5-20241022"
 ```
 
 ---

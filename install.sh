@@ -233,6 +233,62 @@ gh variable set IDAD_CLI --repo "$REPO" --body "$CLI_TYPE" 2>/dev/null && \
 
 echo ""
 
+# Set default model variables based on CLI
+echo -e "${BLUE}▶ Configuring default models...${NC}"
+echo ""
+
+case "$CLI_TYPE" in
+  claude)
+    OPUS_MODEL="claude-opus-4-5-20251101"
+    SONNET_MODEL="claude-sonnet-4-5-20250929"
+    HAIKU_MODEL="claude-haiku-4-5-20251001"
+    ;;
+  cursor)
+    OPUS_MODEL="claude-opus-4-5-20251101"
+    SONNET_MODEL="claude-sonnet-4-5-20250929"
+    HAIKU_MODEL="claude-haiku-4-5-20251001"
+    ;;
+  codex)
+    OPUS_MODEL="gpt-5.1-codex-max"
+    SONNET_MODEL="gpt-5.2"
+    HAIKU_MODEL="gpt-5.1-codex-mini"
+    ;;
+esac
+
+echo "IDAD configures three model tiers (large/medium/small):"
+echo ""
+echo "  • Large:  ${OPUS_MODEL}"
+echo "  • Medium: ${SONNET_MODEL}"
+echo "  • Small:  ${HAIKU_MODEL}"
+echo ""
+echo "Default assignments:"
+echo "  • Planner & IDAD agents → Large (complex reasoning)"
+echo "  • All other agents → Medium (balanced)"
+echo ""
+
+gh variable set IDAD_MODEL_PLANNER --repo "$REPO" --body "$OPUS_MODEL" 2>/dev/null && \
+  echo -e "  ${GREEN}✓${NC} IDAD_MODEL_PLANNER = $OPUS_MODEL" || \
+  echo -e "  ${YELLOW}⚠${NC} Could not set IDAD_MODEL_PLANNER"
+
+gh variable set IDAD_MODEL_IDAD --repo "$REPO" --body "$OPUS_MODEL" 2>/dev/null && \
+  echo -e "  ${GREEN}✓${NC} IDAD_MODEL_IDAD = $OPUS_MODEL" || \
+  echo -e "  ${YELLOW}⚠${NC} Could not set IDAD_MODEL_IDAD"
+
+gh variable set IDAD_MODEL_DEFAULT --repo "$REPO" --body "$SONNET_MODEL" 2>/dev/null && \
+  echo -e "  ${GREEN}✓${NC} IDAD_MODEL_DEFAULT = $SONNET_MODEL" || \
+  echo -e "  ${YELLOW}⚠${NC} Could not set IDAD_MODEL_DEFAULT"
+
+gh variable set IDAD_MODEL_SMALL --repo "$REPO" --body "$HAIKU_MODEL" 2>/dev/null && \
+  echo -e "  ${GREEN}✓${NC} IDAD_MODEL_SMALL = $HAIKU_MODEL" || \
+  echo -e "  ${YELLOW}⚠${NC} Could not set IDAD_MODEL_SMALL"
+
+echo ""
+echo -e "  ${CYAN}ℹ${NC}  Override any agent: gh variable set IDAD_MODEL_<AGENT> --body \"model-name\""
+echo -e "  ${CYAN}ℹ${NC}  Use small model: gh variable set IDAD_MODEL_DOCUMENTER --body \"\$IDAD_MODEL_SMALL\""
+echo -e "  ${CYAN}ℹ${NC}  View current: gh variable list"
+
+echo ""
+
 # Configure secrets
 echo -e "${BLUE}▶ Configuring secrets...${NC}"
 echo ""

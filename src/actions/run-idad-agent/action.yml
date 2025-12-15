@@ -178,6 +178,12 @@ runs:
           --dangerously-skip-permissions \
           -p "$(cat "$AGENT_FILE")
 
+        Context:
+        - PR_NUMBER=${PR}
+        - ISSUE_NUMBER=${ISSUE}
+        - REPO=${REPO}
+        - GITHUB_RUN_ID=${RUN_ID}
+
         Execute your responsibilities now."
 
     - name: Run agent with Cursor
@@ -204,7 +210,13 @@ runs:
           ${MODEL:+--model "$MODEL"} \
           -f "$RULES_FILE" \
           -f "$AGENT_FILE" \
-          -p "Execute your responsibilities now."
+          -p "Context:
+        - PR_NUMBER=${PR}
+        - ISSUE_NUMBER=${ISSUE}
+        - REPO=${REPO}
+        - GITHUB_RUN_ID=${RUN_ID}
+
+        Execute your responsibilities now."
 
     - name: Run agent with Codex
       id: run-codex
@@ -232,6 +244,12 @@ runs:
           --ask-for-approval never \
           --sandbox danger-full-access \
           "$(cat "$AGENT_FILE")
+
+        Context:
+        - PR_NUMBER=${PR}
+        - ISSUE_NUMBER=${ISSUE}
+        - REPO=${REPO}
+        - GITHUB_RUN_ID=${RUN_ID}
 
         Execute your responsibilities now."
 

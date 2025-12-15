@@ -182,27 +182,52 @@ gh secret set OPENAI_API_KEY        # For OpenAI Codex
 
 ## Agents
 
-| Agent | Purpose | Model (default) |
-|-------|---------|-----------------|
-| **Issue Review** | Refine and classify issues | sonnet |
-| **Planner** | Create implementation plans | opus |
-| **Implementer** | Write code and tests | sonnet |
-| **Security Scanner** | Check for vulnerabilities | sonnet |
-| **Reviewer** | Perform code review | sonnet |
-| **Documenter** | Update documentation | sonnet |
-| **IDAD** | Self-improvement | opus |
+| Agent | Purpose | Default Tier |
+|-------|---------|--------------|
+| **Planner** | Create implementation plans | **Opus** |
+| **IDAD** | Self-improvement | **Opus** |
+| **Issue Review** | Refine and classify issues | Sonnet |
+| **Implementer** | Write code and tests | Sonnet |
+| **Security Scanner** | Check for vulnerabilities | Sonnet |
+| **Reviewer** | Perform code review | Sonnet |
+| **Documenter** | Update documentation | Sonnet |
 
-### Configure Models
+### Model Defaults
+
+The installer configures three model tiers (large/medium/small) based on your CLI:
+
+| Tier | Claude Code | Cursor | Codex |
+|------|-------------|--------|-------|
+| **Large** | `claude-opus-4-5-20251101` | `claude-opus-4-5-20251101` | `o3` |
+| **Medium** | `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` | `gpt-4o` |
+| **Small** | `claude-haiku-3-5-20241022` | `claude-haiku-3-5-20241022` | `gpt-4o-mini` |
+
+**Default assignments:**
+- Planner & IDAD agents → Large (complex reasoning)
+- All other agents → Medium (balanced)
+- Small tier available for cost-sensitive overrides
+
+View current configuration:
+```bash
+gh variable list
+```
+
+### Override Models
+
+Override any agent's model after installation:
 
 ```bash
-# For Cursor Agent (uses Cursor model names)
-gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
-gh variable set IDAD_MODEL_IMPLEMENTER --body "sonnet-4.5"
+# Override specific agent
+gh variable set IDAD_MODEL_PLANNER --body "your-model-name"
 
-# For Claude Code (uses Anthropic model names)
-gh variable set IDAD_MODEL_PLANNER --body "claude-opus-4-20250514"
-gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
+# Override default for all agents
+gh variable set IDAD_MODEL_DEFAULT --body "your-model-name"
+
+# Use small model for faster/cheaper agents
+gh variable set IDAD_MODEL_DOCUMENTER --body "claude-haiku-3-5-20241022"
 ```
+
+Available variables: `IDAD_MODEL_DEFAULT`, `IDAD_MODEL_SMALL`, `IDAD_MODEL_PLANNER`, `IDAD_MODEL_IMPLEMENTER`, `IDAD_MODEL_REVIEWER`, `IDAD_MODEL_SECURITY`, `IDAD_MODEL_DOCUMENTER`, `IDAD_MODEL_ISSUE_REVIEW`, `IDAD_MODEL_IDAD`
 
 ---
 

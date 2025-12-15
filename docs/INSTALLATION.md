@@ -248,17 +248,40 @@ gh label list | grep "idad:"
 
 ### Model Configuration
 
-Override default models via repository variables:
+The installer automatically configures three model tiers (large/medium/small) based on your CLI:
 
+**CLI-Specific Model Names:**
+| Tier | Claude Code | Cursor | Codex |
+|------|-------------|--------|-------|
+| **Large** | `claude-opus-4-5-20251101` | `claude-opus-4-5-20251101` | `o3` |
+| **Medium** | `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` | `gpt-4o` |
+| **Small** | `claude-haiku-3-5-20241022` | `claude-haiku-3-5-20241022` | `gpt-4o-mini` |
+
+**Default Assignments:**
+| Agent | Default Tier |
+|-------|--------------|
+| Planner, IDAD | **Large** (complex reasoning) |
+| All others | Medium (balanced) |
+| (available) | Small (cost-sensitive) |
+
+**View current configuration:**
 ```bash
-# For Cursor Agent
-gh variable set IDAD_MODEL_PLANNER --body "opus-4.5"
-gh variable set IDAD_MODEL_IMPLEMENTER --body "sonnet-4.5"
-
-# For Claude Code
-gh variable set IDAD_MODEL_PLANNER --body "claude-opus-4-20250514"
-gh variable set IDAD_MODEL_IMPLEMENTER --body "claude-sonnet-4-20250514"
+gh variable list
 ```
+
+**Override defaults** (optional):
+```bash
+# Override specific agent
+gh variable set IDAD_MODEL_PLANNER --body "your-model-name"
+
+# Override all agents
+gh variable set IDAD_MODEL_DEFAULT --body "your-model-name"
+
+# Use small model for faster/cheaper agents
+gh variable set IDAD_MODEL_DOCUMENTER --body "claude-haiku-3-5-20241022"
+```
+
+Available variables: `IDAD_MODEL_DEFAULT`, `IDAD_MODEL_SMALL`, `IDAD_MODEL_PLANNER`, `IDAD_MODEL_IMPLEMENTER`, `IDAD_MODEL_REVIEWER`, `IDAD_MODEL_SECURITY`, `IDAD_MODEL_DOCUMENTER`, `IDAD_MODEL_ISSUE_REVIEW`, `IDAD_MODEL_IDAD`
 
 ---
 
