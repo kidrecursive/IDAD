@@ -101,6 +101,7 @@ if [ -z "$CLI_TYPE" ]; then
   echo ""
   echo "  1) claude  - Claude Code CLI (Anthropic)"
   echo "  2) cursor  - Cursor Agent CLI (cursor-agent)"
+  echo "  3) codex   - OpenAI Codex CLI"
   echo ""
   echo -n "Enter choice [1]: "
   read CLI_CHOICE < /dev/tty
@@ -108,6 +109,9 @@ if [ -z "$CLI_TYPE" ]; then
   case "$CLI_CHOICE" in
     2|cursor)
       CLI_TYPE="cursor"
+      ;;
+    3|codex)
+      CLI_TYPE="codex"
       ;;
     *)
       CLI_TYPE="claude"
@@ -117,22 +121,18 @@ fi
 
 # Set CLI-specific variables
 case "$CLI_TYPE" in
-  claude)
-    CONFIG_DIR=".claude"
-    WORKFLOW_FILE="idad-claude.yml"
-    API_KEY_SECRET="ANTHROPIC_API_KEY"
-    API_KEY_URL="https://console.anthropic.com/settings/keys"
-    API_KEY_NAME="Anthropic API"
-    CLI_DISPLAY="Claude Code"
+  cursor)
+    COMMANDS_DIR=".cursor/commands"
+    CLI_DISPLAY="Cursor Agent"
+    ;;
+  codex)
+    COMMANDS_DIR=""  # Codex doesn't have slash commands
+    CLI_DISPLAY="OpenAI Codex"
     ;;
   *)
-    CLI_TYPE="cursor"
-    CONFIG_DIR=".cursor"
-    WORKFLOW_FILE="idad-cursor.yml"
-    API_KEY_SECRET="CURSOR_API_KEY"
-    API_KEY_URL="https://cursor.com/settings"
-    API_KEY_NAME="Cursor API"
-    CLI_DISPLAY="Cursor Agent"
+    CLI_TYPE="claude"
+    COMMANDS_DIR=".claude/commands"
+    CLI_DISPLAY="Claude Code"
     ;;
 esac
 
@@ -140,7 +140,7 @@ echo -e "  ${GREEN}✓${NC} Selected: ${CLI_DISPLAY}"
 echo ""
 
 # Check for existing IDAD installation
-if [ -d "$CONFIG_DIR/agents" ] || [ -d ".cursor/agents" ] || [ -d ".claude/agents" ] || [ -f ".github/workflows/idad.yml" ]; then
+if [ -d ".idad" ] || [ -d ".cursor/agents" ] || [ -d ".claude/agents" ] || [ -f ".github/workflows/idad.yml" ]; then
   echo -e "${YELLOW}⚠ IDAD files already exist in this repository${NC}"
   echo -n "Overwrite? (y/N): "
   read OVERWRITE < /dev/tty
@@ -171,28 +171,69 @@ cd "$TEMP_DIR/idad"
 git sparse-checkout set src 2>/dev/null
 cd - > /dev/null
 
+# Verify required files exist
+if [ ! -d "$TEMP_DIR/idad/src/idad" ]; then
+  echo -e "${RED}✗ Failed to download IDAD files${NC}"
+  exit 1
+fi
+
 echo -e "  ${GREEN}✓${NC} Downloaded from ${IDAD_REPO}@${IDAD_BRANCH}"
 
 # Copy files
 echo -e "${BLUE}▶ Installing files...${NC}"
 
 # Create directories
-mkdir -p "$CONFIG_DIR/agents"
-mkdir -p "$CONFIG_DIR/rules"
+mkdir -p .idad/agents
+mkdir -p .idad/rules
+mkdir -p .idad/commands
 mkdir -p .github/workflows
+mkdir -p .github/actions/run-idad-agent
+if [ -n "$COMMANDS_DIR" ]; then
+  mkdir -p "$COMMANDS_DIR"
+fi
 
-# Copy agent definitions
-cp -r "$TEMP_DIR/idad/src/agents/"* "$CONFIG_DIR/agents/"
-echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/agents/ (8 agent definitions)"
+# Copy IDAD files (unified .idad/ directory)
+cp -r "$TEMP_DIR/idad/src/idad/agents/"* .idad/agents/
+echo -e "  ${GREEN}✓${NC} .idad/agents/ (9 agent definitions)"
 
-# Copy rules file (same .mdc file for both CLIs)
-cp "$TEMP_DIR/idad/src/rules/system.mdc" "$CONFIG_DIR/rules/"
-echo -e "  ${GREEN}✓${NC} $CONFIG_DIR/rules/system.mdc"
+cp "$TEMP_DIR/idad/src/idad/rules/system.md" .idad/rules/
+echo -e "  ${GREEN}✓${NC} .idad/rules/system.md"
 
-# Copy workflow (CLI-specific) - only idad.yml, CI is created by IDAD agent if needed
-cp "$TEMP_DIR/idad/src/workflows/$WORKFLOW_FILE" .github/workflows/idad.yml
+cp "$TEMP_DIR/idad/src/idad/README.md" .idad/
+echo -e "  ${GREEN}✓${NC} .idad/README.md"
+
+cp "$TEMP_DIR/idad/src/idad/run.sh" .idad/
+chmod +x .idad/run.sh
+echo -e "  ${GREEN}✓${NC} .idad/run.sh"
+
+# Copy slash commands to .idad/ and CLI-specific directory (if applicable)
+cp "$TEMP_DIR/idad/src/idad/commands/"*.md .idad/commands/
+echo -e "  ${GREEN}✓${NC} .idad/commands/ (4 slash commands)"
+
+if [ -n "$COMMANDS_DIR" ]; then
+  cp "$TEMP_DIR/idad/src/idad/commands/"*.md "$COMMANDS_DIR/"
+  echo -e "  ${GREEN}✓${NC} $COMMANDS_DIR/ (slash commands for ${CLI_DISPLAY})"
+else
+  echo -e "  ${YELLOW}ℹ${NC}  Codex CLI doesn't support slash commands - use .idad/run.sh instead"
+fi
+
+# Copy composite action for CLI abstraction
+cp "$TEMP_DIR/idad/src/actions/run-idad-agent/action.yml" .github/actions/run-idad-agent/
+echo -e "  ${GREEN}✓${NC} .github/actions/run-idad-agent/ (composite action)"
+
+# Copy unified workflow
+cp "$TEMP_DIR/idad/src/workflows/idad.yml" .github/workflows/idad.yml
 echo -e "  ${GREEN}✓${NC} .github/workflows/idad.yml"
 echo -e "  ${YELLOW}ℹ${NC}  CI workflow will be created by IDAD agent based on your project"
+
+echo ""
+
+# Set IDAD_CLI variable
+echo -e "${BLUE}▶ Configuring repository variables...${NC}"
+
+gh variable set IDAD_CLI --repo "$REPO" --body "$CLI_TYPE" 2>/dev/null && \
+  echo -e "  ${GREEN}✓${NC} IDAD_CLI = $CLI_TYPE" || \
+  echo -e "  ${YELLOW}⚠${NC} Could not set IDAD_CLI variable (set manually: gh variable set IDAD_CLI --body \"$CLI_TYPE\")"
 
 echo ""
 
@@ -222,7 +263,7 @@ else
   echo ""
   echo -n "Enter your App ID (or press Enter to skip): "
   read APP_ID < /dev/tty
-  
+
   if [ -n "$APP_ID" ]; then
     echo "$APP_ID" | gh secret set IDAD_APP_ID --repo "$REPO"
     echo -e "  ${GREEN}✓${NC} IDAD_APP_ID configured"
@@ -241,7 +282,7 @@ else
   echo ""
   echo -n "Path to .pem file (or press Enter to skip): "
   read PEM_PATH < /dev/tty
-  
+
   if [ -n "$PEM_PATH" ] && [ -f "$PEM_PATH" ]; then
     gh secret set IDAD_APP_PRIVATE_KEY --repo "$REPO" < "$PEM_PATH"
     echo -e "  ${GREEN}✓${NC} IDAD_APP_PRIVATE_KEY configured"
@@ -255,23 +296,89 @@ fi
 
 echo ""
 
-# Check CLI-specific API key
-if gh secret list --repo "$REPO" 2>/dev/null | grep -q "$API_KEY_SECRET"; then
-  echo -e "  ${GREEN}✓${NC} $API_KEY_SECRET already configured"
-else
-  echo -e "${YELLOW}IDAD uses ${CLI_DISPLAY} for AI agent execution${NC}"
-  echo ""
-  echo -e "Get your API key at: ${CYAN}${API_KEY_URL}${NC}"
-  echo ""
-  echo -n "Paste your ${API_KEY_NAME} key (or press Enter to skip): "
-  read -s API_KEY < /dev/tty
-  echo ""
-  
-  if [ -n "$API_KEY" ]; then
-    echo "$API_KEY" | gh secret set "$API_KEY_SECRET" --repo "$REPO"
-    echo -e "  ${GREEN}✓${NC} $API_KEY_SECRET configured"
+# Configure CLI-specific authentication
+if [[ "$CLI_TYPE" == "claude" ]]; then
+  # Claude Code supports both API key and OAuth token
+  HAS_API_KEY=$(gh secret list --repo "$REPO" 2>/dev/null | grep -q "ANTHROPIC_API_KEY" && echo "yes" || echo "no")
+  HAS_AUTH_TOKEN=$(gh secret list --repo "$REPO" 2>/dev/null | grep -q "ANTHROPIC_AUTH_TOKEN" && echo "yes" || echo "no")
+
+  if [[ "$HAS_API_KEY" == "yes" ]]; then
+    echo -e "  ${GREEN}✓${NC} ANTHROPIC_API_KEY already configured"
+  elif [[ "$HAS_AUTH_TOKEN" == "yes" ]]; then
+    echo -e "  ${GREEN}✓${NC} ANTHROPIC_AUTH_TOKEN already configured"
   else
-    echo -e "  ${YELLOW}⚠${NC} $API_KEY_SECRET skipped - add it later with: gh secret set $API_KEY_SECRET"
+    echo -e "${YELLOW}Claude Code supports two authentication methods:${NC}"
+    echo ""
+    echo "  1) API Key (ANTHROPIC_API_KEY) - Direct API access"
+    echo "     Get yours at: https://console.anthropic.com/settings/keys"
+    echo ""
+    echo "  2) Auth Token (ANTHROPIC_AUTH_TOKEN) - OAuth/Bearer token"
+    echo "     For OAuth-based authentication flows"
+    echo ""
+    echo -n "Which authentication method? [1=API Key, 2=Auth Token]: "
+    read AUTH_CHOICE < /dev/tty
+
+    if [[ "$AUTH_CHOICE" == "2" ]]; then
+      echo -n "Paste your Auth Token (or press Enter to skip): "
+      read -s AUTH_TOKEN < /dev/tty
+      echo ""
+      if [ -n "$AUTH_TOKEN" ]; then
+        echo "$AUTH_TOKEN" | gh secret set ANTHROPIC_AUTH_TOKEN --repo "$REPO"
+        echo -e "  ${GREEN}✓${NC} ANTHROPIC_AUTH_TOKEN configured"
+      else
+        echo -e "  ${YELLOW}⚠${NC} Auth token skipped - add it later with: gh secret set ANTHROPIC_AUTH_TOKEN"
+      fi
+    else
+      echo -n "Paste your API Key (or press Enter to skip): "
+      read -s API_KEY < /dev/tty
+      echo ""
+      if [ -n "$API_KEY" ]; then
+        echo "$API_KEY" | gh secret set ANTHROPIC_API_KEY --repo "$REPO"
+        echo -e "  ${GREEN}✓${NC} ANTHROPIC_API_KEY configured"
+      else
+        echo -e "  ${YELLOW}⚠${NC} API key skipped - add it later with: gh secret set ANTHROPIC_API_KEY"
+      fi
+    fi
+  fi
+elif [[ "$CLI_TYPE" == "cursor" ]]; then
+  # Cursor uses CURSOR_API_KEY
+  if gh secret list --repo "$REPO" 2>/dev/null | grep -q "CURSOR_API_KEY"; then
+    echo -e "  ${GREEN}✓${NC} CURSOR_API_KEY already configured"
+  else
+    echo -e "${YELLOW}Cursor Agent requires an API key${NC}"
+    echo ""
+    echo -e "Get your API key at: ${CYAN}https://cursor.com/settings${NC}"
+    echo ""
+    echo -n "Paste your Cursor API key (or press Enter to skip): "
+    read -s API_KEY < /dev/tty
+    echo ""
+
+    if [ -n "$API_KEY" ]; then
+      echo "$API_KEY" | gh secret set CURSOR_API_KEY --repo "$REPO"
+      echo -e "  ${GREEN}✓${NC} CURSOR_API_KEY configured"
+    else
+      echo -e "  ${YELLOW}⚠${NC} CURSOR_API_KEY skipped - add it later with: gh secret set CURSOR_API_KEY"
+    fi
+  fi
+else
+  # Codex uses OPENAI_API_KEY
+  if gh secret list --repo "$REPO" 2>/dev/null | grep -q "OPENAI_API_KEY"; then
+    echo -e "  ${GREEN}✓${NC} OPENAI_API_KEY already configured"
+  else
+    echo -e "${YELLOW}OpenAI Codex requires an API key${NC}"
+    echo ""
+    echo -e "Get your API key at: ${CYAN}https://platform.openai.com/api-keys${NC}"
+    echo ""
+    echo -n "Paste your OpenAI API key (or press Enter to skip): "
+    read -s API_KEY < /dev/tty
+    echo ""
+
+    if [ -n "$API_KEY" ]; then
+      echo "$API_KEY" | gh secret set OPENAI_API_KEY --repo "$REPO"
+      echo -e "  ${GREEN}✓${NC} OPENAI_API_KEY configured"
+    else
+      echo -e "  ${YELLOW}⚠${NC} OPENAI_API_KEY skipped - add it later with: gh secret set OPENAI_API_KEY"
+    fi
   fi
 fi
 
@@ -359,7 +466,11 @@ echo ""
 echo -e "${CYAN}Next steps:${NC}"
 echo ""
 echo "1. Review and commit the IDAD files:"
-echo -e "   ${YELLOW}git add $CONFIG_DIR/ .github/workflows/idad.yml && git commit -m 'feat: add IDAD'${NC}"
+if [ -n "$COMMANDS_DIR" ]; then
+  echo -e "   ${YELLOW}git add .idad/ $COMMANDS_DIR/ .github/ && git commit -m 'feat: add IDAD'${NC}"
+else
+  echo -e "   ${YELLOW}git add .idad/ .github/ && git commit -m 'feat: add IDAD'${NC}"
+fi
 echo ""
 echo "2. Push and merge to main (workflows must be in main to trigger):"
 echo -e "   ${YELLOW}git push && gh pr create --fill && gh pr merge --auto --squash${NC}"
@@ -368,12 +479,22 @@ echo ""
 echo "3. Install your GitHub App on this repository:"
 echo -e "   ${YELLOW}https://github.com/settings/apps${NC} → Your App → Install App → Select ${REPO}"
 echo ""
-echo "4. Create your first automated issue:"
+if [ -n "$COMMANDS_DIR" ]; then
+  echo "4. Try the slash commands locally:"
+  echo -e "   ${YELLOW}/idad-create-issue Add a new feature${NC}"
+  echo -e "   ${YELLOW}/idad-monitor${NC}"
+else
+  echo "4. Try running agents locally (Codex doesn't support slash commands):"
+  echo -e "   ${YELLOW}.idad/run.sh issue-review 123${NC}"
+  echo -e "   ${YELLOW}.idad/run.sh planner 123${NC}"
+fi
+echo ""
+echo "5. Create your first automated issue:"
 echo -e "   ${YELLOW}gh issue create --title 'My feature' --label 'idad:issue-review' --body 'Description'${NC}"
 echo ""
-echo "5. Watch the agents work:"
+echo "6. Watch the agents work:"
 echo -e "   ${YELLOW}gh run list --workflow=idad.yml --limit 5${NC}"
 echo ""
-echo "6. Read the docs:"
+echo "7. Read the docs:"
 echo -e "   ${YELLOW}https://github.com/${IDAD_REPO}#readme${NC}"
 echo ""

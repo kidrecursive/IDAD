@@ -19,14 +19,18 @@ permissions:
   actions: write
 
 env:
-  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || 'haiku-4.5' }}
-  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || 'opus-4.5' }}
-  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || 'haiku-4.5' }}
-  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || 'haiku-4.5' }}
-  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || 'haiku-4.5' }}
-  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || 'sonnet-4.5' }}
-  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || 'sonnet-4.5' }}
-  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || 'opus-4.5' }}
+  # CLI selection: 'claude', 'cursor', or 'codex' (default: claude)
+  IDAD_CLI: ${{ vars.IDAD_CLI || 'claude' }}
+
+  # Model configuration (users set these with CLI-appropriate names)
+  MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || '' }}
+  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || '' }}
+  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || '' }}
+  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || '' }}
+  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || '' }}
+  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || '' }}
+  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || '' }}
 
 jobs:
   # ======================
@@ -71,11 +75,9 @@ jobs:
 
             // Label to agent mapping (only ONE idad:* label at a time)
             const labelToAgent = {
-              // Issue labels
               'idad:issue-review': 'issue-review',
               'idad:planning': 'planner',
               'idad:implementing': 'implementer',
-              // PR labels
               'idad:security-scan': 'security-scanner',
               'idad:code-review': 'reviewer',
               'idad:documenting': 'documenter',
@@ -132,7 +134,6 @@ jobs:
               const prData = payload.pull_request;
               const branch = prData.head?.ref || '';
 
-              // Skip IDAD's own PRs (prevent loops)
               if (prData.merged && !branch.startsWith('idad/')) {
                 agent = 'idad';
                 pr = String(prData.number);
@@ -148,22 +149,18 @@ jobs:
               const labels = getLabels(payload.issue);
               const number = String(payload.issue.number);
 
-              // Skip bot comments
               if (commenter.includes('[bot]')) {
                 console.log('⏭️ Skipping bot comment');
                 skip = true;
               }
-              // Issue comment with idad:issue-needs-clarification - re-trigger issue review
               else if (!isPrComment && hasLabel(labels, 'idad:issue-needs-clarification')) {
                 agent = 'issue-review';
                 issue = number;
               }
-              // Issue comment with idad:human-plan-review - planner processes feedback
               else if (!isPrComment && hasLabel(labels, 'idad:human-plan-review')) {
                 agent = 'planner';
                 issue = number;
               }
-              // PR comment with idad:human-pr-review - implementer addresses feedback
               else if (isPrComment && hasLabel(labels, 'idad:human-pr-review')) {
                 agent = 'implementer';
                 pr = number;
@@ -177,10 +174,8 @@ jobs:
               skip = true;
             }
 
-            // Get model for agent
             const model = models[agent] || process.env.MODEL_DEFAULT;
 
-            // Set outputs
             core.setOutput('agent', agent);
             core.setOutput('model', model);
             core.setOutput('issue', issue);
@@ -211,52 +206,24 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Cache Cursor CLI
-        id: cache-cursor
-        uses: actions/cache@v4
-        with:
-          path: ~/.local
-          key: ${{ runner.os }}-cursor-cli-v1
-          restore-keys: |
-            ${{ runner.os }}-cursor-cli-
-
-      - name: Install Cursor CLI
-        if: steps.cache-cursor.outputs.cache-hit != 'true'
-        run: curl -fsSL https://cursor.com/install | bash
-
-      - name: Add Cursor to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Run ${{ needs.router.outputs.agent }} agent
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          AGENT: ${{ needs.router.outputs.agent }}
-          ISSUE: ${{ needs.router.outputs.issue }}
-          PR: ${{ needs.router.outputs.pr }}
-          MODEL: ${{ needs.router.outputs.model }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          echo "🤖 Running $AGENT agent"
-          echo "   Issue: ${ISSUE:-none}"
-          echo "   PR: ${PR:-none}"
-          echo "   Model: $MODEL"
-
-          AGENT_FILE=".cursor/agents/${AGENT}.md"
-          RULES_FILE=".cursor/rules/system.mdc"
-
-          if [[ ! -f "$AGENT_FILE" ]]; then
-            echo "❌ Agent file not found: $AGENT_FILE"
-            exit 1
-          fi
-
-          cursor-agent \
-            ${MODEL:+--model "$MODEL"} \
-            -f "$RULES_FILE" \
-            -f "$AGENT_FILE" \
-            -p "Execute your responsibilities now."
+        uses: ./.github/actions/run-idad-agent
+        with:
+          cli: ${{ env.IDAD_CLI }}
+          agent: ${{ needs.router.outputs.agent }}
+          model: ${{ needs.router.outputs.model }}
+          issue: ${{ needs.router.outputs.issue }}
+          pr: ${{ needs.router.outputs.pr }}
+          repo: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          github-token: ${{ steps.app-token.outputs.token }}
+          # Claude Code auth (supports both API key and OAuth token)
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic-auth-token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          # Cursor auth
+          cursor-api-key: ${{ secrets.CURSOR_API_KEY }}
+          # Codex auth
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 
   # ======================
   # SUMMARY (for human states)

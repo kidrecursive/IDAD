@@ -4,7 +4,7 @@
 
 Create issues, get PRs automatically. AI agents handle the entire development workflow.
 
-**Supports both [Cursor Agent](https://docs.cursor.com/agent/cli) and [Claude Code](https://claude.ai/code) CLIs**
+**Supports both [Claude Code](https://claude.ai/code) and [Cursor Agent](https://docs.cursor.com/agent/cli) CLIs**
 
 ---
 
@@ -45,8 +45,9 @@ curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh |
 ```
 
 The installer will:
-- Ask which AI CLI you want to use (Cursor or Claude Code)
-- Download IDAD agent definitions and workflow
+- Ask which AI CLI you want to use (Claude Code or Cursor)
+- Download IDAD agent definitions, rules, and workflow
+- Install slash commands for local CLI usage
 - Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
 
@@ -54,38 +55,35 @@ The installer will:
 
 ### CLI Options
 
-| CLI | Command | API Key |
-|-----|---------|---------|
+| CLI | Command | Authentication |
+|-----|---------|----------------|
+| **Claude Code** | `claude` | `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` |
 | **Cursor Agent** | `cursor-agent` | `CURSOR_API_KEY` |
-| **Claude Code** | `claude` | `ANTHROPIC_API_KEY` |
+| **OpenAI Codex** | `codex` | `OPENAI_API_KEY` |
 
 You can also specify the CLI directly:
 
 ```bash
-# Install with Cursor (default)
+# Install with Claude Code (default)
+curl -fsSL https://...install.sh | bash -s -- --cli claude
+
+# Install with Cursor
 curl -fsSL https://...install.sh | bash -s -- --cli cursor
 
-# Install with Claude Code
-curl -fsSL https://...install.sh | bash -s -- --cli claude
+# Install with Codex
+curl -fsSL https://...install.sh | bash -s -- --cli codex
 ```
 
 ### Verify Installation
 
 After installation, run the repository testing agent to verify everything is configured correctly:
 
-**Cursor:**
 ```bash
-cursor-agent \
-  -f .cursor/rules/system.mdc \
-  -f .cursor/agents/repository-testing.md \
-  -p "Run the IDAD repository tests"
-```
+# Using the run script
+.idad/run.sh repository-testing
 
-**Claude Code:**
-```bash
-claude \
-  --system-prompt "$(cat .claude/rules/system.mdc)" \
-  -p "Run the IDAD repository tests. $(cat .claude/agents/repository-testing.md)"
+# Or use the slash command
+/idad-run-agent repository-testing
 ```
 
 This verifies:
@@ -103,6 +101,26 @@ gh issue create --title "Add hello world feature" --label "idad:issue-review" --
 
 # Watch the agents work
 gh run list --workflow=idad.yml --limit 5
+```
+
+### Local Usage with Slash Commands
+
+IDAD includes slash commands for local CLI usage:
+
+| Command | Purpose |
+|---------|---------|
+| `/idad-create-issue` | Create a new issue with guided questions |
+| `/idad-monitor` | Monitor workflow status for issues/PRs |
+| `/idad-approve-plan` | Review and approve implementation plans |
+| `/idad-run-agent` | Run an agent locally for testing |
+
+Example:
+```bash
+# In your CLI, type:
+/idad-create-issue add user authentication
+
+# Or reference the README for context:
+@.idad/README.md Let's create an issue for adding dark mode
 ```
 
 ---
@@ -152,12 +170,16 @@ gh secret set IDAD_APP_ID
 # Add the private key from your .pem file
 gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
 
-# Add your AI CLI API key (one of these, depending on your choice)
-gh secret set CURSOR_API_KEY      # For Cursor Agent
-gh secret set ANTHROPIC_API_KEY   # For Claude Code
+# Add your AI CLI authentication (choose based on your CLI)
+gh secret set ANTHROPIC_API_KEY     # For Claude Code (API key)
+gh secret set ANTHROPIC_AUTH_TOKEN  # For Claude Code (OAuth token - alternative)
+gh secret set CURSOR_API_KEY        # For Cursor Agent
+gh secret set OPENAI_API_KEY        # For OpenAI Codex
 ```
 
 > **Note**: The private key is multi-line. Use file redirection as shown above, or paste carefully when prompted.
+
+> **Claude Code Authentication**: You can use either `ANTHROPIC_API_KEY` (standard API key) or `ANTHROPIC_AUTH_TOKEN` (OAuth bearer token from `claude auth status`). Only one is required.
 
 ---
 
@@ -222,10 +244,8 @@ gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
 
 ## File Structure (After Installation)
 
-### Cursor Agent Installation
-
 ```
-.cursor/
+.idad/                          # CLI-agnostic IDAD configuration
 ├── agents/
 │   ├── issue-review.md
 │   ├── planner.md
@@ -235,35 +255,32 @@ gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
 │   ├── documenter.md
 │   ├── idad.md
 │   ├── reporting.md
-│   └── repository-testing.md   # Post-install verification
+│   └── repository-testing.md
 ├── rules/
-│   └── system.mdc
-└── README.md
+│   └── system.md
+├── commands/                   # Slash command source files
+│   ├── idad-create-issue.md
+│   ├── idad-monitor.md
+│   ├── idad-approve-plan.md
+│   └── idad-run-agent.md
+├── run.sh                      # Local agent runner script
+└── README.md                   # Local usage documentation
 
-.github/workflows/
-└── idad.yml                    # CI created by IDAD agent when needed
+.claude/commands/               # Claude Code slash commands (copies)
+└── idad-*.md
+
+.cursor/commands/               # Cursor slash commands (copies)
+└── idad-*.md
+
+.github/
+├── actions/
+│   └── run-idad-agent/        # Composite action for CLI abstraction
+│       └── action.yml
+└── workflows/
+    └── idad.yml               # Unified workflow
 ```
 
-### Claude Code Installation
-
-```
-.claude/
-├── agents/
-│   ├── issue-review.md
-│   ├── planner.md
-│   ├── implementer.md
-│   ├── security-scanner.md
-│   ├── reviewer.md
-│   ├── documenter.md
-│   ├── idad.md
-│   ├── reporting.md
-│   └── repository-testing.md   # Post-install verification
-└── rules/
-    └── system.mdc              # Same format for both CLIs
-
-.github/workflows/
-└── idad.yml                    # CI created by IDAD agent when needed
-```
+The installer creates CLI-specific command directories for slash command support (except Codex, which doesn't support slash commands). All IDAD configuration lives in `.idad/`.
 
 ---
 
@@ -283,7 +300,7 @@ gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
 - **Private Key**: Stored securely as repository secret
 - **Installation Tokens**: Auto-generated, short-lived (1 hour)
 - **Security Scanner**: Checks for vulnerabilities before review
-- **Opt-in Only**: Automation requires explicit `idad:auto` label
+- **Opt-in Only**: Automation requires explicit `idad:issue-review` label
 - **Bot Identity**: All actions clearly attributed to `IDAD[bot]`
 
 ---

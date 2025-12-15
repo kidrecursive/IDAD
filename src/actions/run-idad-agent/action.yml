@@ -1,0 +1,257 @@
+name: 'Run IDAD Agent'
+description: 'Execute an IDAD agent with any supported CLI (Claude Code, Cursor, or Codex)'
+
+inputs:
+  cli:
+    description: 'CLI to use: claude, cursor, or codex'
+    required: true
+    default: 'claude'
+  agent:
+    description: 'Agent name (e.g., planner, implementer)'
+    required: true
+  model:
+    description: 'Model override (optional)'
+    required: false
+    default: ''
+  issue:
+    description: 'Issue number (optional)'
+    required: false
+    default: ''
+  pr:
+    description: 'PR number (optional)'
+    required: false
+    default: ''
+  repo:
+    description: 'Repository (owner/name)'
+    required: false
+    default: ''
+  run-id:
+    description: 'GitHub Actions run ID'
+    required: false
+    default: ''
+  # Authentication
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude Code'
+    required: false
+    default: ''
+  anthropic-auth-token:
+    description: 'Anthropic OAuth token for Claude Code'
+    required: false
+    default: ''
+  cursor-api-key:
+    description: 'Cursor API key'
+    required: false
+    default: ''
+  openai-api-key:
+    description: 'OpenAI API key for Codex'
+    required: false
+    default: ''
+  github-token:
+    description: 'GitHub token for gh CLI'
+    required: true
+
+outputs:
+  success:
+    description: 'Whether the agent completed successfully'
+    value: ${{ steps.result.outputs.success }}
+
+runs:
+  using: "composite"
+  steps:
+    # ======================
+    # VALIDATION
+    # ======================
+    - name: Validate inputs
+      shell: bash
+      run: |
+        if [[ ! -f ".idad/agents/${{ inputs.agent }}.md" ]]; then
+          echo "::error::Agent file not found: .idad/agents/${{ inputs.agent }}.md"
+          exit 1
+        fi
+
+        if [[ ! -f ".idad/rules/system.md" ]]; then
+          echo "::error::System rules not found: .idad/rules/system.md"
+          exit 1
+        fi
+
+        echo "Agent: ${{ inputs.agent }}"
+        echo "CLI: ${{ inputs.cli }}"
+        echo "Model: ${{ inputs.model || 'default' }}"
+
+    # ======================
+    # INSTALL CLI
+    # ======================
+    - name: Cache Claude Code CLI
+      if: inputs.cli == 'claude'
+      id: cache-claude
+      uses: actions/cache@v4
+      with:
+        path: ~/.local
+        key: ${{ runner.os }}-claude-cli-v1
+
+    - name: Install Claude Code
+      if: inputs.cli == 'claude' && steps.cache-claude.outputs.cache-hit != 'true'
+      shell: bash
+      run: curl -fsSL https://claude.ai/install.sh | bash
+
+    - name: Add Claude to PATH
+      if: inputs.cli == 'claude'
+      shell: bash
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Cache Cursor CLI
+      if: inputs.cli == 'cursor'
+      id: cache-cursor
+      uses: actions/cache@v4
+      with:
+        path: ~/.local
+        key: ${{ runner.os }}-cursor-cli-v1
+
+    - name: Install Cursor Agent
+      if: inputs.cli == 'cursor' && steps.cache-cursor.outputs.cache-hit != 'true'
+      shell: bash
+      run: curl -fsSL https://cursor.com/install | bash
+
+    - name: Add Cursor to PATH
+      if: inputs.cli == 'cursor'
+      shell: bash
+      run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Setup Node.js for Codex
+      if: inputs.cli == 'codex'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Cache Codex CLI
+      if: inputs.cli == 'codex'
+      id: cache-codex
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-codex-cli-v1
+
+    - name: Install Codex
+      if: inputs.cli == 'codex'
+      shell: bash
+      run: npm i -g @openai/codex
+
+    # ======================
+    # SETUP (CLI-SPECIFIC)
+    # ======================
+    - name: Setup AGENTS.md for Codex
+      if: inputs.cli == 'codex'
+      shell: bash
+      run: |
+        # Codex auto-discovers AGENTS.md for system instructions
+        cp .idad/rules/system.md AGENTS.md
+        echo "Created AGENTS.md for Codex instruction discovery"
+
+    # ======================
+    # RUN AGENT
+    # ======================
+    - name: Run agent with Claude Code
+      id: run-claude
+      if: inputs.cli == 'claude'
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        ANTHROPIC_AUTH_TOKEN: ${{ inputs.anthropic-auth-token }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        AGENT: ${{ inputs.agent }}
+        ISSUE: ${{ inputs.issue }}
+        PR: ${{ inputs.pr }}
+        REPO: ${{ inputs.repo }}
+        RUN_ID: ${{ inputs.run-id }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        echo "Running $AGENT agent with Claude Code"
+
+        AGENT_FILE=".idad/agents/${AGENT}.md"
+        RULES_FILE=".idad/rules/system.md"
+
+        claude \
+          ${MODEL:+--model "$MODEL"} \
+          --system-prompt "$(cat "$RULES_FILE")" \
+          --print \
+          --dangerously-skip-permissions \
+          -p "$(cat "$AGENT_FILE")
+
+        Execute your responsibilities now."
+
+    - name: Run agent with Cursor
+      id: run-cursor
+      if: inputs.cli == 'cursor'
+      shell: bash
+      env:
+        CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        AGENT: ${{ inputs.agent }}
+        ISSUE: ${{ inputs.issue }}
+        PR: ${{ inputs.pr }}
+        REPO: ${{ inputs.repo }}
+        RUN_ID: ${{ inputs.run-id }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        echo "Running $AGENT agent with Cursor"
+
+        AGENT_FILE=".idad/agents/${AGENT}.md"
+        RULES_FILE=".idad/rules/system.md"
+
+        cursor-agent \
+          ${MODEL:+--model "$MODEL"} \
+          -f "$RULES_FILE" \
+          -f "$AGENT_FILE" \
+          -p "Execute your responsibilities now."
+
+    - name: Run agent with Codex
+      id: run-codex
+      if: inputs.cli == 'codex'
+      shell: bash
+      env:
+        CODEX_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        AGENT: ${{ inputs.agent }}
+        ISSUE: ${{ inputs.issue }}
+        PR: ${{ inputs.pr }}
+        REPO: ${{ inputs.repo }}
+        RUN_ID: ${{ inputs.run-id }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        echo "Running $AGENT agent with Codex"
+
+        AGENT_FILE=".idad/agents/${AGENT}.md"
+
+        codex exec \
+          ${MODEL:+--model "$MODEL"} \
+          --full-auto \
+          --ask-for-approval never \
+          --sandbox danger-full-access \
+          "$(cat "$AGENT_FILE")
+
+        Execute your responsibilities now."
+
+    # ======================
+    # CLEANUP
+    # ======================
+    - name: Cleanup AGENTS.md
+      if: inputs.cli == 'codex' && always()
+      shell: bash
+      run: rm -f AGENTS.md
+
+    - name: Set result
+      id: result
+      if: always()
+      shell: bash
+      run: |
+        if [[ "${{ steps.run-claude.outcome }}" == "success" ]] || \
+           [[ "${{ steps.run-cursor.outcome }}" == "success" ]] || \
+           [[ "${{ steps.run-codex.outcome }}" == "success" ]]; then
+          echo "success=true" >> $GITHUB_OUTPUT
+        else
+          echo "success=false" >> $GITHUB_OUTPUT
+        fi
