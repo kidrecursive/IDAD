@@ -1,10 +1,10 @@
 # IDAD - Issue Driven Agentic Development
 
-🤖 **Fully automated, self-improving GitHub-based agentic coding system**
+**Fully automated, self-improving GitHub-based agentic coding system**
 
-Create issues, get PRs automatically. AI agents handle the entire development workflow.
+Create issues, get PRs automatically. AI agents handle the entire development workflow with human review gates at plan and PR stages.
 
-**Supports both [Claude Code](https://claude.ai/code) and [Cursor Agent](https://docs.cursor.com/agent/cli) CLIs**
+Supports [Claude Code](https://claude.ai/code), [Cursor Agent](https://docs.cursor.com/agent/cli), and [OpenAI Codex](https://openai.com/index/introducing-codex/) CLIs.
 
 ---
 
@@ -32,26 +32,26 @@ You create an issue with idad:issue-review label
 🤖 IDAD Agent → analyzes for system improvements
 ```
 
-**Only ONE `idad:*` label per issue/PR at a time** - the label encapsulates the workflow state.
+**Two human gates**: You approve the plan before coding starts, then review the final PR before merge.
+
+**Only ONE `idad:*` label per issue/PR at a time** — the label encapsulates the workflow state.
 
 ---
 
 ## Install
 
-Add IDAD to any existing repository with one command:
+Add IDAD to any existing repository:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kidrecursive/IDAD/main/install.sh | bash
 ```
 
 The installer will:
-- Ask which AI CLI you want to use (Claude Code or Cursor)
+- Ask which AI CLI you want to use (Claude Code, Cursor, or Codex)
 - Download IDAD agent definitions, rules, and workflow
 - Install slash commands for local CLI usage
 - Guide you through GitHub App and API key setup
 - Configure repository labels and permissions
-
-**Note**: CI workflow is NOT installed by default. The IDAD agent will automatically create an appropriate CI workflow based on your project's languages and testing frameworks after the first PR merges.
 
 ### CLI Options
 
@@ -61,122 +61,66 @@ The installer will:
 | **Cursor Agent** | `cursor-agent` | `CURSOR_API_KEY` |
 | **OpenAI Codex** | `codex` | `OPENAI_API_KEY` |
 
-You can also specify the CLI directly:
+Install with a specific CLI:
 
 ```bash
-# Install with Claude Code (default)
 curl -fsSL https://...install.sh | bash -s -- --cli claude
-
-# Install with Cursor
 curl -fsSL https://...install.sh | bash -s -- --cli cursor
-
-# Install with Codex
 curl -fsSL https://...install.sh | bash -s -- --cli codex
 ```
-
-### Verify Installation
-
-After installation, run the repository testing agent to verify everything is configured correctly:
-
-```bash
-# Use the slash command in your CLI
-/idad-run-agent repository-testing
-```
-
-This verifies:
-- ✅ All agent files are present
-- ✅ Workflow is correctly configured
-- ✅ GitHub labels exist
-- ✅ Secrets are configured
-- ✅ Actions permissions are set
 
 ### Try It
 
 ```bash
 # Create your first automated issue
-gh issue create --title "Add hello world feature" --label "idad:issue-review" --body "Create a simple hello world function with tests."
+gh issue create \
+  --title "Add hello world feature" \
+  --label "idad:issue-review" \
+  --body "Create a simple hello world function with tests."
 
 # Watch the agents work
 gh run list --workflow=idad.yml --limit 5
 ```
 
-### Local Usage with Slash Commands
-
-IDAD includes slash commands for local CLI usage:
-
-| Command | Purpose |
-|---------|---------|
-| `/idad-create-issue` | Create a new issue with guided questions |
-| `/idad-monitor` | Monitor workflow status for issues/PRs |
-| `/idad-approve-plan` | Review and approve implementation plans |
-| `/idad-run-agent` | Run an agent locally for testing |
-
-Example:
-```bash
-# In your CLI, type:
-/idad-create-issue add user authentication
-
-# Or reference the README for context:
-@.idad/README.md Let's create an issue for adding dark mode
-```
-
 ---
 
-## GitHub App Setup (Required)
+## GitHub App Setup
 
-IDAD requires a **GitHub App** to enable workflows to trigger other workflows and perform automated actions.
+IDAD requires a GitHub App to enable workflows to trigger other workflows.
 
-### Step 1: Create the GitHub App
+### 1. Create the App
 
-1. Go to: [GitHub App Settings](https://github.com/settings/apps/new) (or your org's settings)
-2. Configure:
-   - **Name**: `IDAD Automation` (or your preferred name)
-   - **Homepage URL**: Your repository URL
-   - **Webhook**: Uncheck "Active" (not needed)
-3. **Repository Permissions**:
-   | Permission | Access |
-   |------------|--------|
-   | Contents | Read and Write |
-   | Issues | Read and Write |
-   | Pull requests | Read and Write |
-   | Actions | Read and Write |
-   | Workflows | Read and Write |
-4. **Where can this app be installed?**: Only on this account
-5. Click **"Create GitHub App"**
+Go to [GitHub App Settings](https://github.com/settings/apps/new) and configure:
+- **Name**: `IDAD Automation`
+- **Homepage URL**: Your repository URL
+- **Webhook**: Uncheck "Active"
 
-### Step 2: Generate Private Key
+**Repository Permissions**:
+| Permission | Access |
+|------------|--------|
+| Contents | Read and Write |
+| Issues | Read and Write |
+| Pull requests | Read and Write |
+| Actions | Read and Write |
+| Workflows | Read and Write |
 
-1. On the app's settings page, scroll to **"Private keys"**
-2. Click **"Generate a private key"**
-3. Save the downloaded `.pem` file securely
+### 2. Generate Private Key & Install
 
-### Step 3: Install the App
+On the app's settings page, generate a private key and save the `.pem` file. Then install the app on your repository.
 
-1. Go to your app's settings page
-2. Click **"Install App"** in the sidebar
-3. Choose **"Only select repositories"**
-4. Select your target repository
-5. Click **"Install"**
-
-### Step 4: Add Secrets
+### 3. Add Secrets
 
 ```bash
-# Get your App ID from the app's settings page (shown at top)
+# GitHub App credentials
 gh secret set IDAD_APP_ID
-
-# Add the private key from your .pem file
 gh secret set IDAD_APP_PRIVATE_KEY < path/to/private-key.pem
 
-# Add your AI CLI authentication (choose based on your CLI)
-gh secret set ANTHROPIC_API_KEY     # For Claude Code (API key)
-gh secret set ANTHROPIC_AUTH_TOKEN  # For Claude Code (OAuth token - alternative)
-gh secret set CURSOR_API_KEY        # For Cursor Agent
-gh secret set OPENAI_API_KEY        # For OpenAI Codex
+# AI CLI API key (choose based on your CLI)
+gh secret set ANTHROPIC_API_KEY     # Claude Code (API key)
+gh secret set ANTHROPIC_AUTH_TOKEN  # Claude Code (OAuth - alternative)
+gh secret set CURSOR_API_KEY        # Cursor Agent
+gh secret set OPENAI_API_KEY        # OpenAI Codex
 ```
-
-> **Note**: The private key is multi-line. Use file redirection as shown above, or paste carefully when prompted.
-
-> **Claude Code Authentication**: You can use either `ANTHROPIC_API_KEY` (standard API key) or `ANTHROPIC_AUTH_TOKEN` (OAuth bearer token from `claude auth status`). Only one is required.
 
 ---
 
@@ -184,15 +128,16 @@ gh secret set OPENAI_API_KEY        # For OpenAI Codex
 
 | Agent | Purpose |
 |-------|---------|
+| **Issue Review** | Analyze and validate issues |
 | **Planner** | Create implementation plans |
-| **IDAD** | Self-improvement |
-| **Issue Review** | Refine and classify issues |
 | **Implementer** | Write code and tests |
 | **Security Scanner** | Check for vulnerabilities |
 | **Reviewer** | Perform code review |
 | **Documenter** | Update documentation |
+| **IDAD** | Self-improvement after merges |
+| **Reporting** | Generate metrics reports |
 
-### Model Defaults
+### Model Configuration
 
 The installer configures models based on your CLI:
 
@@ -202,20 +147,10 @@ The installer configures models based on your CLI:
 | **Cursor** | `sonnet-4.5` | `opus-4.5` |
 | **Codex** | `gpt-5.2` | `gpt-5.1-codex-max` |
 
-View current configuration:
-```bash
-gh variable list
-```
-
-### Override Models
-
-Override any agent's model after installation:
+Override any agent's model:
 
 ```bash
-# Override a specific agent
 gh variable set IDAD_MODEL_REVIEWER --body "claude-sonnet-4-5-20250929"
-
-# Override the default for all agents
 gh variable set IDAD_MODEL_DEFAULT --body "your-model-name"
 ```
 
@@ -225,7 +160,7 @@ Available variables: `IDAD_MODEL_DEFAULT`, `IDAD_MODEL_PLANNER`, `IDAD_MODEL_IMP
 
 ## Labels
 
-Add `idad:issue-review` to any issue to enable automation. **Only ONE `idad:*` label at a time.**
+Add `idad:issue-review` to any issue to start automation. **Only ONE `idad:*` label at a time.**
 
 | Label | Purpose |
 |-------|---------|
@@ -241,136 +176,77 @@ Add `idad:issue-review` to any issue to enable automation. **Only ONE `idad:*` l
 
 ---
 
-## Manual Triggers
+## Local Usage
 
-```bash
-# Trigger specific agent
-gh workflow run idad.yml -f agent="planner" -f issue="123" -f pr=""
+IDAD includes slash commands for Claude Code and Cursor:
 
-# Re-run implementer on existing PR
-gh workflow run idad.yml -f agent="implementer" -f issue="123" -f pr="456"
+| Command | Purpose |
+|---------|---------|
+| `/idad-create-issue` | Create issues with guided questions |
+| `/idad-monitor` | Check workflow status |
+| `/idad-approve-plan` | Review and approve plans |
+| `/idad-run-agent` | Run agent locally (testing) |
 
-# Trigger security scan
-gh workflow run idad.yml -f agent="security-scanner" -f issue="" -f pr="456"
+For Codex (no slash commands), reference the README directly:
+```
+@.idad/README.md Create an issue for adding dark mode
 ```
 
 ---
 
-## File Structure (After Installation)
+## Manual Triggers
+
+```bash
+# Trigger specific agent on issue
+gh workflow run idad.yml -f agent="planner" -f issue="123"
+
+# Trigger agent on PR
+gh workflow run idad.yml -f agent="security-scanner" -f pr="456"
+
+# Re-run implementer with both issue and PR
+gh workflow run idad.yml -f agent="implementer" -f issue="123" -f pr="456"
+```
+
+---
+
+## File Structure
 
 ```
-.idad/                          # CLI-agnostic IDAD configuration
-├── agents/
-│   ├── issue-review.md
-│   ├── planner.md
-│   ├── implementer.md
-│   ├── security-scanner.md
-│   ├── reviewer.md
-│   ├── documenter.md
-│   ├── idad.md
-│   ├── reporting.md
-│   └── repository-testing.md
-├── rules/
-│   └── system.md
+.idad/                          # IDAD configuration
+├── agents/                     # Agent definitions (8 agents)
+├── rules/system.md             # System rules
 ├── commands/                   # Slash command source files
-│   ├── idad-create-issue.md
-│   ├── idad-monitor.md
-│   ├── idad-approve-plan.md
-│   └── idad-run-agent.md
-└── README.md                   # Local usage documentation
-
-.claude/commands/               # Claude Code slash commands (copies)
-└── idad-*.md
-
-.cursor/commands/               # Cursor slash commands (copies)
-└── idad-*.md
+└── README.md                   # Local usage docs
 
 .github/
-├── actions/
-│   └── run-idad-agent/        # Composite action for CLI abstraction
-│       └── action.yml
-└── workflows/
-    └── idad.yml               # Unified workflow
-```
+├── actions/run-idad-agent/     # Composite action
+└── workflows/idad.yml          # Main workflow
 
-The installer creates CLI-specific command directories for slash command support (except Codex, which doesn't support slash commands). All IDAD configuration lives in `.idad/`.
+.claude/commands/               # Claude Code slash commands
+.cursor/commands/               # Cursor slash commands
+```
 
 ---
 
 ## Documentation
 
-- [Quick Start](docs/QUICKSTART.md)
-- [Installation](docs/INSTALLATION.md)
-- [Workflow Guide](docs/WORKFLOW.md)
-- [Agent Reference](docs/AGENTS.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- **[Quick Start](docs/QUICKSTART.md)** — Get running in 5 minutes
+- **[Installation](docs/INSTALLATION.md)** — Detailed setup guide
+- **[Workflow Guide](docs/WORKFLOW.md)** — Complete workflow walkthrough
+- **[Agent Reference](docs/AGENTS.md)** — All agents documented
+- **[Operations](docs/OPERATIONS.md)** — Maintenance and management
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** — Problem solving
 
 ---
 
 ## Security
 
+- **Human Review Gates**: Plan approval and PR review required before merge
 - **GitHub App**: Scoped to specific repositories only
 - **Private Key**: Stored securely as repository secret
-- **Installation Tokens**: Auto-generated, short-lived (1 hour)
 - **Security Scanner**: Checks for vulnerabilities before review
-- **Opt-in Only**: Automation requires explicit `idad:issue-review` label
-- **Bot Identity**: All actions clearly attributed to `IDAD[bot]`
-
----
-
-## Workflow Diagram
-
-```mermaid
-flowchart TD
-    subgraph Issue["📋 Issue Phase"]
-        A[/"👤 Create Issue<br/>+ idad:issue-review"/]
-        B["🤖 Issue Review Agent<br/>Analyzes & validates"]
-    end
-
-    subgraph Planning["🗺️ Planning Phase"]
-        C["🤖 Planner Agent<br/>Creates implementation plan"]
-        D{"👤 Review Plan<br/>idad:human-plan-review"}
-        E["🤖 Planner Agent<br/>Updates plan"]
-    end
-
-    subgraph Implementation["💻 Implementation Phase"]
-        F["🤖 Implementer Agent<br/>Writes code & tests"]
-        G["🔒 Security Scanner<br/>idad:security-scan"]
-    end
-
-    subgraph Review["🔍 Review Phase"]
-        I["🤖 Reviewer Agent<br/>idad:code-review"]
-        J["🤖 Documenter Agent<br/>idad:documenting"]
-    end
-
-    subgraph Completion["✨ Completion"]
-        K{"👤 Review PR<br/>idad:human-pr-review"}
-        L["🎉 Merge PR"]
-        M["🤖 IDAD Agent<br/>Creates improvement issue"]
-    end
-
-    A --> B
-    B -->|"idad:planning"| C
-    C --> D
-    D -->|"Changes needed"| E
-    E --> D
-    D -->|"Approved → idad:implementing"| F
-    F --> G
-    G -->|"Pass"| I
-    G -->|"Block"| F
-    I -->|"Changes needed"| F
-    I -->|"Approved"| J
-    J --> K
-    K -->|"Comments"| F
-    K -->|"Approved"| L
-    L --> M
-
-    style A fill:#e1f5fe
-    style D fill:#fff3e0
-    style K fill:#fff3e0
-    style L fill:#c8e6c9
-    style M fill:#f3e5f5
-```
+- **Opt-in Only**: Requires explicit `idad:issue-review` label
+- **Bot Identity**: All actions attributed to agent emails
 
 ---
 
