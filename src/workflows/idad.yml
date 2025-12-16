@@ -22,15 +22,16 @@ env:
   # CLI selection: 'claude', 'cursor', or 'codex' (default: claude)
   IDAD_CLI: ${{ vars.IDAD_CLI || 'claude' }}
 
-  # Model configuration (users set these with CLI-appropriate names)
+  # Model configuration - set IDAD_MODEL_DEFAULT, override per-agent with IDAD_MODEL_<AGENT>
   MODEL_DEFAULT: ${{ vars.IDAD_MODEL_DEFAULT || '' }}
-  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || '' }}
-  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || '' }}
-  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || '' }}
-  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || '' }}
-  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || '' }}
-  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || '' }}
-  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || '' }}
+  MODEL_PLANNER: ${{ vars.IDAD_MODEL_PLANNER || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_IMPLEMENTER: ${{ vars.IDAD_MODEL_IMPLEMENTER || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_REVIEWER: ${{ vars.IDAD_MODEL_REVIEWER || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_SECURITY: ${{ vars.IDAD_MODEL_SECURITY || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_DOCUMENTER: ${{ vars.IDAD_MODEL_DOCUMENTER || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_ISSUE_REVIEW: ${{ vars.IDAD_MODEL_ISSUE_REVIEW || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_IDAD: ${{ vars.IDAD_MODEL_IDAD || vars.IDAD_MODEL_DEFAULT || '' }}
+  MODEL_REPORTING: ${{ vars.IDAD_MODEL_REPORTING || vars.IDAD_MODEL_DEFAULT || '' }}
 
 jobs:
   # ======================
@@ -57,6 +58,7 @@ jobs:
           MODEL_DOCUMENTER: ${{ env.MODEL_DOCUMENTER }}
           MODEL_ISSUE_REVIEW: ${{ env.MODEL_ISSUE_REVIEW }}
           MODEL_IDAD: ${{ env.MODEL_IDAD }}
+          MODEL_REPORTING: ${{ env.MODEL_REPORTING }}
         with:
           script: |
             const { eventName, payload } = context;
@@ -71,6 +73,7 @@ jobs:
               'reviewer': process.env.MODEL_REVIEWER,
               'documenter': process.env.MODEL_DOCUMENTER,
               'idad': process.env.MODEL_IDAD,
+              'reporting': process.env.MODEL_REPORTING,
             };
 
             // Label to agent mapping (only ONE idad:* label at a time)

@@ -248,40 +248,40 @@ gh label list | grep "idad:"
 
 ### Model Configuration
 
-The installer automatically configures three model tiers (large/medium/small) based on your CLI:
+The installer sets models based on your CLI:
 
-**CLI-Specific Model Names:**
-| Tier | Claude Code | Cursor | Codex |
-|------|-------------|--------|-------|
-| **Large** | `claude-opus-4-5-20251101` | `claude-opus-4-5-20251101` | `o3` |
-| **Medium** | `claude-sonnet-4-20250514` | `claude-sonnet-4-20250514` | `gpt-4o` |
-| **Small** | `claude-haiku-3-5-20241022` | `claude-haiku-3-5-20241022` | `gpt-4o-mini` |
-
-**Default Assignments:**
-| Agent | Default Tier |
-|-------|--------------|
-| Planner, IDAD | **Large** (complex reasoning) |
-| All others | Medium (balanced) |
-| (available) | Small (cost-sensitive) |
+| CLI | Default Model | Planner & IDAD Model |
+|-----|---------------|----------------------|
+| **Claude Code** | `claude-haiku-4-5-20251001` | `claude-opus-4-5-20251101` |
+| **Cursor** | `sonnet-4.5` | `opus-4.5` |
+| **Codex** | `gpt-5.2` | `gpt-5.1-codex-max` |
 
 **View current configuration:**
 ```bash
 gh variable list
 ```
 
-**Override defaults** (optional):
+**Override per-agent** (optional):
 ```bash
-# Override specific agent
-gh variable set IDAD_MODEL_PLANNER --body "your-model-name"
+# Override a specific agent's model
+gh variable set IDAD_MODEL_REVIEWER --body "claude-sonnet-4-5-20250929"
 
-# Override all agents
+# Override the default for all agents
 gh variable set IDAD_MODEL_DEFAULT --body "your-model-name"
-
-# Use small model for faster/cheaper agents
-gh variable set IDAD_MODEL_DOCUMENTER --body "claude-haiku-3-5-20241022"
 ```
 
-Available variables: `IDAD_MODEL_DEFAULT`, `IDAD_MODEL_SMALL`, `IDAD_MODEL_PLANNER`, `IDAD_MODEL_IMPLEMENTER`, `IDAD_MODEL_REVIEWER`, `IDAD_MODEL_SECURITY`, `IDAD_MODEL_DOCUMENTER`, `IDAD_MODEL_ISSUE_REVIEW`, `IDAD_MODEL_IDAD`
+**Available model variables:**
+| Variable | Purpose |
+|----------|---------|
+| `IDAD_MODEL_DEFAULT` | Fallback for all agents |
+| `IDAD_MODEL_PLANNER` | Planner agent |
+| `IDAD_MODEL_IMPLEMENTER` | Implementer agent |
+| `IDAD_MODEL_REVIEWER` | Reviewer agent |
+| `IDAD_MODEL_SECURITY` | Security Scanner agent |
+| `IDAD_MODEL_DOCUMENTER` | Documenter agent |
+| `IDAD_MODEL_ISSUE_REVIEW` | Issue Review agent |
+| `IDAD_MODEL_IDAD` | IDAD self-improvement agent |
+| `IDAD_MODEL_REPORTING` | Reporting agent |
 
 ---
 

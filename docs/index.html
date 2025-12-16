@@ -436,57 +436,45 @@ gh run list <span class="fl">--workflow</span>=idad.yml <span class="fl">--limit
       <hr />
 
       <section>
-        <h2>Agents</h2>
+        <h2>Agents &amp; Models</h2>
+        <p>The installer configures default models based on your CLI:</p>
         <table>
           <tr>
-            <th>Agent</th>
-            <th>Purpose</th>
-            <th>Model</th>
+            <th>CLI</th>
+            <th>Default Model</th>
+            <th>Planner &amp; IDAD Model</th>
           </tr>
           <tr>
-            <td>Issue Review</td>
-            <td>Refine and classify issues</td>
-            <td>Sonnet</td>
+            <td>Claude Code</td>
+            <td><code>claude-haiku-4-5-20251001</code></td>
+            <td><code>claude-opus-4-5-20251101</code></td>
           </tr>
           <tr>
-            <td>Planner</td>
-            <td>Create implementation plans</td>
-            <td>Opus</td>
+            <td>Cursor</td>
+            <td><code>sonnet-4.5</code></td>
+            <td><code>opus-4.5</code></td>
           </tr>
           <tr>
-            <td>Implementer</td>
-            <td>Write code and tests</td>
-            <td>Sonnet</td>
-          </tr>
-          <tr>
-            <td>Security Scanner</td>
-            <td>Check for vulnerabilities</td>
-            <td>Sonnet</td>
-          </tr>
-          <tr>
-            <td>Reviewer</td>
-            <td>Perform code review</td>
-            <td>Sonnet</td>
-          </tr>
-          <tr>
-            <td>Documenter</td>
-            <td>Update documentation</td>
-            <td>Sonnet</td>
-          </tr>
-          <tr>
-            <td>IDAD</td>
-            <td>Self-improvement</td>
-            <td>Opus</td>
+            <td>Codex</td>
+            <td><code>gpt-5.2</code></td>
+            <td><code>gpt-5.1-codex-max</code></td>
           </tr>
         </table>
 
-        <p>Configure models via repository variables:</p>
-        <pre><code><span class="cm"># For Cursor Agent</span>
-gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="st">"opus-4.5"</span>
-gh variable set IDAD_MODEL_IMPLEMENTER <span class="fl">--body</span> <span class="st">"sonnet-4.5"</span>
+        <p>Override any agent's model via repository variables:</p>
+        <pre><code><span class="cm"># Override a specific agent</span>
+gh variable set IDAD_MODEL_REVIEWER <span class="fl">--body</span> <span class="st">"claude-sonnet-4-5-20250929"</span>
 
-<span class="cm"># For Claude Code</span>
-gh variable set IDAD_MODEL_PLANNER <span class="fl">--body</span> <span class="st">"claude-opus-4-20250514"</span></code></pre>
+<span class="cm"># Override the default for all agents</span>
+gh variable set IDAD_MODEL_DEFAULT <span class="fl">--body</span> <span class="st">"your-model-name"</span></code></pre>
+
+        <p>
+          Available variables: <code>IDAD_MODEL_DEFAULT</code>,
+          <code>IDAD_MODEL_PLANNER</code>, <code>IDAD_MODEL_IMPLEMENTER</code>,
+          <code>IDAD_MODEL_REVIEWER</code>, <code>IDAD_MODEL_SECURITY</code>,
+          <code>IDAD_MODEL_DOCUMENTER</code>, <code>IDAD_MODEL_ISSUE_REVIEW</code>,
+          <code>IDAD_MODEL_IDAD</code>, <code>IDAD_MODEL_REPORTING</code>
+        </p>
       </section>
 
       <hr />
